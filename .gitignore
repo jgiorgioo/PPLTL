@@ -1,0 +1,17 @@
+# --- AMBIENTE E CACHE ---
+# Ignora l'ambiente virtuale e le cache di Python
+stage_env/
+__pycache__/
+*.pyc
+
+# --- FILE TEMPORANEI E DI TEST ---
+# Ignora i file temporanei generati da Fast Downward durante i calcoli
+sas_plan
+output.sas
+# Ignora lo script di test che abbiamo usato per VAL
+test_val.py
+
+# --- OUTPUT DEI BENCHMARK ---
+# Escludiamo i piani generati. I benchmark producono migliaia di file pesanti 
+# che intaserebbero GitHub (su Git va solo il codice, non i risultati)
+plans/
