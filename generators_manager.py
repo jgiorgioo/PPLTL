@@ -21,10 +21,10 @@ MINIGRID_POOL = {
 }
 
 CITYCAR_POOL = {
-    "rows_range": (4, 10),
-    "cols_range": (4, 10),
-    "cars_range": (1, 2),
-    "garages_range": (1, 4)
+    "rows_range": (3, 5),       # Ridotto (prima era 4-10)
+    "cols_range": (3, 5),       # Ridotto (prima era 4-10)
+    "cars_range": (1, 2),       # Forza 1 sola auto per semplificare drasticamente il problema
+    "garages_range": (1, 2)     # Massimo 2 garage
 }
 
 GOLDMINER_POOL = {
@@ -53,7 +53,7 @@ def _verify_and_save(domain_name, candidate_path, problems_dir, plans_dir):
     search = "eager_greedy([ff()], preferred=[ff()])" if domain_name in ["citycar", "sokoban", "goldminer"] else "astar(blind())"
     
     # 1. Solve instance with Fast Downward
-    is_solvable, local_plan = verify_feasibility(domain_file, candidate_path, search_config=search, timeout=10)
+    is_solvable, local_plan = verify_feasibility(domain_file, candidate_path, search_config=search, timeout=40)
     
     try:
         if is_solvable and local_plan and os.path.exists(local_plan):
@@ -151,12 +151,18 @@ def _execute_generator(generator: PDDLGenerator, problems_dir, plans_dir):
                     try: os.remove(target_plan)
                     except: pass
                 return False
+            
+        actual_problem_path = raw_capture_path if is_stdout_mode else target_file
 
-        if _verify_and_save(generator.domain_name, raw_capture_path, problems_dir, plans_dir):
-            return True
+        if actual_problem_path and os.path.exists(actual_problem_path):
+            if _verify_and_save(generator.domain_name, actual_problem_path, problems_dir, plans_dir):
+                return True
+            else:
+                if os.path.exists(actual_problem_path): 
+                    os.remove(actual_problem_path)
+                return False
         else:
-            if os.path.exists(raw_capture_path): 
-                os.remove(raw_capture_path)
+            print(f"[ERROR] PDDL instance file not found at: {actual_problem_path}")
             return False
 
     except subprocess.CalledProcessError:
