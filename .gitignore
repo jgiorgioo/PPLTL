@@ -2,6 +2,7 @@
 # Ignora l'ambiente virtuale e le cache di Python
 stage_env/
 __pycache__/
+constraints/__pycache__/
 *.pyc
 
 # --- FILE TEMPORANEI E DI TEST ---
@@ -15,3 +16,4 @@ test_val.py
 # Escludiamo i piani generati. I benchmark producono migliaia di file pesanti 
 # che intaserebbero GitHub (su Git va solo il codice, non i risultati)
 plans/
+test_landing_output/

@@ -1,6 +1,6 @@
 import os
 import sys
-from generators import MiniGridGenerator, CityCarGenerator, GoldminerGenerator, SokobanGenerator
+from generators import MiniGridGenerator, GoldminerGenerator, SokobanGenerator
 
 from generators_manager import run_generation_loop
 from util import clear_domain_dirs
@@ -34,29 +34,27 @@ def main():
     print("==================================================")
     print("Available domains:")
     print("  [1] GridWorld (MiniGrid)")
-    print("  [2] CityCar")
-    print("  [3] Sokoban")
-    print("  [4] Goldminer")
-    print("  [5] Clear dataset folders")
+    print("  [2] Sokoban")
+    print("  [3] Goldminer")
+    print("  [4] Clear dataset folders")
     print("  [q] Quit")
     
-    choice = get_choice("Select an option: ", ["1", "2", "3", "4", "5", "q"])
+    choice = get_choice("Select an option: ", ["1", "2", "3", "4","q"])
     
     if choice == "q":
         print("Exiting tool. Goodbye!")
         sys.exit(0)
         
-    if choice == "5":
+    if choice == "4":
         print("--------------------------------------------------")
         print("\n--- SELECT DOMAIN TO CLEAR ---")
-        print(" [1] GridWorld (gridworld)")
-        print(" [2] CityCar")
-        print(" [3] Sokoban")
-        print(" [4] Goldminer")
+        print(" [1] GridWorld")
+        print(" [2] Sokoban")
+        print(" [3] Goldminer")
         print(" [c] Cancel")
         
         sub_choice = input("Select domain: ").strip().lower()
-        mapping = {"1": "gridworld", "2": "citycar", "3": "sokoban", "4": "goldminer"}
+        mapping = {"1": "gridworld", "2": "sokoban", "3": "goldminer"}
         
         if sub_choice == "c" or sub_choice not in mapping:
             print("[CANCELLED] Directory clearing aborted.")
@@ -82,7 +80,6 @@ def main():
         print("==================================================")
         sys.exit(0)
         
-    # Request generation volume for domains 1, 2, 3, 4
     try:
         problems_num = int(input("How many instances do you want to generate?: ").strip())
         if problems_num <= 0: raise ValueError
@@ -92,7 +89,6 @@ def main():
 
     print("--------------------------------------------------")
     
-    # UI mapping logic routes to stateless factories and manager loop
     if choice == "1":
         run_generation_loop(
             generator=MiniGridGenerator(),
@@ -103,15 +99,6 @@ def main():
         )
         
     elif choice == "2":
-        run_generation_loop(
-            generator=CityCarGenerator(),
-            problems_dir="plans/uncostrained/citycar",
-            plans_dir="plans/uncostrained/citycar/solutions",
-            count=problems_num,
-            status_callback=ui_status_logger
-        )
-        
-    elif choice == "3":
             run_generation_loop(
                 generator=SokobanGenerator(),
                 problems_dir="plans/uncostrained/sokoban",
@@ -120,7 +107,7 @@ def main():
                 status_callback=ui_status_logger
             )
             
-    elif choice == "4":
+    elif choice == "3":
         run_generation_loop(
             generator=GoldminerGenerator(),
             problems_dir="plans/uncostrained/goldminer",

@@ -1,1 +1,43 @@
-VA bene validate come lo ho implementato, l'estensione pddl non riconsce i file .plan validati
+raccogliere in più moduli? i file iniziano ad eessre tanti
+Ordering in gridworld, prendere due celle della soluzione e invertire l ordine in cui sono attraverstare?
+In goldminer avoidance è meglio farla sulle bombe? o addirittura vietare di far esplodere una pietra?
+Obligation in goldminer, meglio obbligare a usare una bomba o passare per una cella
+Ordering in goldminer, prendere due rocce della soluzione e inverrire l ordine in cui devono essere aftte esplodere
+In sokoban avere sempre almeno 2 scatole?
+Obligatione in sokoban come per gridworld, va bene? o meglio farlo sulle azioni di push
+Ordering prendo sue scatole nel piano inverto ordine, però bisogna avere minimo 2 scatole va bene?
+per sokoban è meglio tenere le soluzione del generatore o farli risolvere a fastdownward?
+
+
+
+stage-ppltl/
+│
+├── main.py                     # L'interfaccia utente/menu principale
+├── solver.py                   # Wrapper di basso livello per Fast Downward
+├── validator.py                # Wrapper di basso livello per VAL
+├── util.py                     # Funzioni di utility condivise (verify_validate_and_save, loops)
+│
+├── generators/                 # --- PARTE 1: GENERATORI FLAT ---
+│   ├── __init__.py
+│   ├── generators.py           # Classe base PDDLGenerator e definizioni specifiche
+│   └── generators_manager.py   # _execute_generator, run_generation_loop
+│
+├── constraints/                # --- PARTE 2: VINCOLI LTL ---
+│   ├── __init__.py
+│   ├── constraint_manager.py   # Il manager universale basato sul Registry
+│   ├── target_extractors.py    # I 9 metodi di estrazione oggetti/celle
+│   │
+│   │   # Sottocartelle o file per i compilatori Plan4Past reali:
+│   ├── avoidance_gridworld.py
+│   ├── precedence_gridworld.py
+│   └── ...
+│
+├── binaries/                   # I file eseguibili esterni (opzionale ma consigliato)
+│   ├── fast-downward/
+│   ├── val/
+│   └── gridworld-generator
+│
+└── plans/                      # --- I TUOI DATASET DI OUTPUT ---
+    ├── unconstrained/          # Generati dalla Parte 1 (es. plans/unconstrained/gridworld/*.pddl)
+    └── constrained/            # Generati dalla Parte 2 (es. plans/constrained/gridworld/avoidance/)
+

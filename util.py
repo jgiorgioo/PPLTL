@@ -1,6 +1,12 @@
 import os
+import sys
 import re
 import shutil
+from pathlib import Path
+from pddl.parser.problem import ProblemParser
+from pddl.logic.base import And
+from validator import validate_plan
+from solver import verify_feasibility
 
 def get_highest_index(domain_name, target_dir):
     if not os.path.exists(target_dir):
@@ -145,67 +151,145 @@ def save_constrained_instance(domain_name, temp_domain_path, temp_problem_path, 
         print(f"[ERROR util] Failed to save encapsulated constrained instance: {e}")
         return False
     
-def extract_raw_goal_string(problem_pddl_path):
-    if not os.path.exists(problem_pddl_path):
-        return None
+def get_search_config(domain_name: str) -> str:
+    """
+    Returns the optimal search configuration for Fast Downward.
+    Configured according to Plan4Past benchmarks for derived predicates.
+    """
+    if domain_name in ["sokoban", "goldminer"]:
+        return "lazy_greedy([ff()], preferred=[ff()])"
+    return "astar(blind())"
+
+
+def verify_validate_and_save(domain_name, domain_mapping, problem_path, save_callback, timeout):
+    """
+    Unified function that handles planning with Fast Downward and validation with VAL.
+    Accepts domain_mapping configuration and a specific save_callback function
+    to decouple the raw planning execution from the different dataset storage logic.
+    """
+    domain_path = domain_mapping.get(domain_name)
+    if not domain_path or not os.path.exists(domain_path):
+        print(f"[ERROR] Specified domain path not found for: {domain_name}")
+        return False
+
+    search_config = get_search_config(domain_name)
+    
+    # 1. Plan using Fast Downward
+    is_solvable, local_plan = verify_feasibility(
+        domain_path, 
+        problem_path, 
+        search_config=search_config, 
+        timeout=timeout
+    )
+    
+    if not is_solvable or not local_plan or not os.path.exists(local_plan):
+        print(f"[INFO] Planning process failed for {domain_name}.")
+        return False
 
     try:
-        with open(problem_pddl_path, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        content_clean = re.sub(r";.*", "", content)
-        match_start = re.search(r"\(:goal\s*", content_clean, re.IGNORECASE)
-        if not match_start:
-            return None
-
-        start_index = match_start.end()
-        bracket_level = 1
-        goal_chars = []
-        
-        for char in content_clean[start_index:]:
-            if char == '(':
-                bracket_level += 1
-            elif char == ')':
-                bracket_level -= 1
+        # 2. Validate the generated plan using VAL
+        if validate_plan(domain_path, problem_path, local_plan):
+            # 3. Execute the custom storage callback method
+            return save_callback(local_plan)
+        else:
+            print(f"[WARN] Plan validation failed via VAL for {domain_name}.")
+            return False
             
-            if bracket_level == 0:
-                break
-                
-            goal_chars.append(char)
-
-        raw_goal = "".join(goal_chars).strip()
-        return re.sub(r"\s+", " ", raw_goal)
-
-    except Exception:
-        return None
+    finally:
+        # Centralized cleanup of the temporary local plan file
+        if local_plan and os.path.exists(local_plan):
+            try:
+                os.remove(local_plan)
+            except Exception:
+                pass
 
 
 def join_goal_and_rule(problem_pddl_path, ltl_rule_str):
-    raw_goal_str = extract_raw_goal_string(problem_pddl_path)
-    if not raw_goal_str:
+    """
+    Legge il problema PDDL originale, ne estrae il goal tramite AST 
+    e lo formatta per pylogics senza l'ausilio di espressioni regolari.
+    """
+    try:
+        # Carica ed esegue il parsing strutturato del problema
+        problem_parser = ProblemParser()
+        problem_obj = problem_parser(Path(problem_pddl_path).read_text(encoding="utf-8"))
+        
+        goal_expr = problem_obj.goal
+        atoms = []
+        
+        # Spacchetta l'albero sintattico dell'operatore logico del goal
+        if isinstance(goal_expr, And):
+            atoms = list(goal_expr.operands)
+        else:
+            atoms = [goal_expr]
+            
+        pltl_parts = []
+        for atom in atoms:
+            pred_name = atom.name
+            args = [term.name for term in atom.terms]
+            
+            if args:
+                formatted_args = ", ".join(args)
+                pltl_parts.append(f"{pred_name}({formatted_args})")
+            else:
+                pltl_parts.append(f"{pred_name}()")
+                
+        pylogics_goal = " & ".join(pltl_parts)
+        return f"({pylogics_goal}) & {ltl_rule_str}"
+        
+    except Exception as e:
+        print(f"[ERROR util] AST extraction failed for {problem_pddl_path}: {e}")
         return ltl_rule_str
 
-    s = raw_goal_str.strip()
+def run_generic_pipeline_loop(target_dir, file_prefix, count, pipeline_func, status_callback=None):
+    """
+    Universal loop orchestrator for flat generation and LTL constraints.
+    Manages target calculation, the while loop, Ctrl+C handling, and logs via callback.
+    """
+    target_dir = os.path.abspath(target_dir)
+    os.makedirs(target_dir, exist_ok=True)
     
-    if s.lower().startswith("and "):
-        s = s[4:].strip()
-    elif s.lower().startswith("and("):
-        s = s[3:].strip()
-        if s.endswith(")"):
-            s = s[:-1].strip()
-        
-    matches = re.findall(r"\(([^\s\)]+)\s*([^\)]*)\)", s)
+    # Count how many valid items already exist based solely on the prefix
+    files_saved = len([
+        f for f in os.listdir(target_dir) 
+        if f.startswith(file_prefix)
+    ])
     
-    pltl_parts = []
-    for pred, args in matches:
-        pred = pred.strip()
-        args = args.strip()
-        
-        if args:
-            formatted_args = ", ".join(args.split())
-            pltl_parts.append(f"{pred}({formatted_args})")
-        else:
-            pltl_parts.append(f"{pred}()")
+    total_target = files_saved + count
+    
+    if status_callback:
+        status_callback("init", {"current": files_saved, "target": total_target})
+    
+    try:
+        while files_saved < total_target:
+            if status_callback: 
+                status_callback("attempt", None)
             
-    pylogics_goal = " & ".join(pltl_parts) if pltl_parts else s
-    return f"({pylogics_goal}) & {ltl_rule_str}"
+            success = pipeline_func()
+            
+            if success:
+                # Re-evaluate disk state using only the prefix filter
+                files_saved = len([
+                    f for f in os.listdir(target_dir) 
+                    if f.startswith(file_prefix)
+                ])
+                if status_callback: 
+                    status_callback("success", {"current": files_saved, "target": total_target})
+            else:
+                if status_callback: 
+                    status_callback("failed", None)
+                    
+        if status_callback: 
+            status_callback("finished", {"prefix": file_prefix})
+            
+    except KeyboardInterrupt:
+        if os.path.exists(target_dir):
+            for f in os.listdir(target_dir):
+                if f.startswith("temp_") or f.startswith("tmp_"):
+                    try: 
+                        os.remove(os.path.join(target_dir, f))
+                    except: 
+                        pass
+        if status_callback: 
+            status_callback("interrupted", None)
+        sys.exit(0)

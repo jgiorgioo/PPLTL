@@ -30,24 +30,6 @@ class MiniGridGenerator(PDDLGenerator):
         return command, False
 
 
-class CityCarGenerator(PDDLGenerator):
-    """Stateless generator strategy for the CityCar domain."""
-    def __init__(self):
-        super().__init__("citycar")
-        self.script_path = os.path.abspath(os.path.join("pddl-generators", "citycar", "generator.py"))
-
-    def get_command_and_mode(self, params):
-        command = [
-            "python3", self.script_path,
-            str(params["rows"]), 
-            str(params["columns"]), 
-            str(params["cars"]), 
-            str(params["garages"]), 
-            "--seed", str(params["seed"])
-        ]
-        return command, True
-
-
 class GoldminerGenerator(PDDLGenerator):
     """Stateless generator strategy for the Goldminer domain."""
     def __init__(self):
