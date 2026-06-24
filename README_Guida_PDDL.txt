@@ -153,3 +153,5 @@ indipendenza dall'ambiente operativo (Portabilità Cross-Platform):
   strutturalmente pronta per supportare la futura espansione verso i vincoli 
   normativi complessi delle specifiche PPLTL (Ordering, Obligation).
 ===============================================================================
+
+ho modificato il generatore di sokoban per restituire loc-1-2 al posto di loc_1_2

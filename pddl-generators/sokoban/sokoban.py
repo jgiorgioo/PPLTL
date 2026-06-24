@@ -15,7 +15,7 @@ def get_directions() -> List[str]:
 
 
 def get_location(row: int, column: int) -> str:
-    return f"loc_{row}_{column}"
+    return f"loc-{row}-{column}"
 
 
 def get_box(box: int) -> str:

@@ -5,8 +5,8 @@ import shutil
 from pathlib import Path
 from pddl.parser.problem import ProblemParser
 from pddl.logic.base import And
-from validator import validate_plan
-from solver import verify_feasibility
+from .validator import validate_plan
+from .solver import verify_feasibility
 
 def get_highest_index(domain_name, target_dir):
     if not os.path.exists(target_dir):
@@ -28,24 +28,10 @@ def get_highest_index(domain_name, target_dir):
                 
     return highest_index
 
+def rename_problem(target_file_path, new_prob_name):
+    if not target_file_path or not os.path.exists(target_file_path):
+        return False
 
-def rename_problem(domain_name, output_dir, target_file_path=None):
-    if not os.path.exists(output_dir) or not target_file_path or not os.path.exists(target_file_path):
-        return None
-
-    if not hasattr(rename_problem, "current_indices"):
-        rename_problem.current_indices = {}
-        
-    if domain_name not in rename_problem.current_indices:
-        highest_index = get_highest_index(domain_name, output_dir)
-        rename_problem.current_indices[domain_name] = highest_index + 1
-
-    final_id = rename_problem.current_indices[domain_name]
-    rename_problem.current_indices[domain_name] += 1
-
-    new_filename = f"{domain_name}-{final_id}.pddl"
-    new_file_path = os.path.join(output_dir, new_filename)
-    
     try:
         with open(target_file_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -53,9 +39,7 @@ def rename_problem(domain_name, output_dir, target_file_path=None):
         match = re.search(r"\(define\s*\(\s*problem\s+([^\s\)]+)", content, re.IGNORECASE)
         if match:
             native_prob_name = match.group(1)
-            new_prob_name = f"{domain_name}-{final_id}"
             
-            # Sostituzione mirata sull'header
             pattern = r"(\(define\s*\(\s*problem\s+)" + re.escape(native_prob_name) + r"(\s*\))"
             if re.search(pattern, content, re.IGNORECASE):
                 content = re.sub(pattern, r"\1" + new_prob_name + r"\2", content, flags=re.IGNORECASE)
@@ -65,16 +49,80 @@ def rename_problem(domain_name, output_dir, target_file_path=None):
         with open(target_file_path, "w", encoding="utf-8") as f:
             f.write(content)
             
-        if os.path.exists(new_file_path):
-            os.remove(new_file_path)
+        return True
+    except Exception as e:
+        print(f"[ERROR util] Failed to patch PDDL problem header: {e}")
+        return False
+
+def save_valid_instance(domain_name, candidate_path, local_plan, problems_dir, plans_dir):
+    try:
+        final_id = get_highest_index(domain_name, problems_dir) + 1
+        
+        new_prob_filename = f"{domain_name}-{final_id}.pddl"
+        dest_prob_path = os.path.join(problems_dir, new_prob_filename)
+        
+        dest_plan_filename = f"{domain_name}-{final_id}.plan"
+        dest_plan_path = os.path.join(plans_dir, dest_plan_filename)
+        
+        os.makedirs(problems_dir, exist_ok=True)
+        os.makedirs(plans_dir, exist_ok=True)
+        
+        shutil.move(candidate_path, dest_prob_path)
+        
+        new_prob_name = f"{domain_name}-{final_id}"
+        rename_problem(dest_prob_path, new_prob_name)
+        
+        if os.path.exists(local_plan):
+            shutil.move(local_plan, dest_plan_path)
+        else:
+            print(f"[ERROR util] Base plan solution not found at: {local_plan}")
+            return False
             
-        os.rename(target_file_path, new_file_path)
-        return final_id
+        return True
         
     except Exception as e:
-        print(f"[ERROR util] Renaming failed: {e}")
-        return None
+        print(f"[ERROR util] Failed to save valid instance: {e}")
+        return False
 
+
+def save_constrained_instance(domain_name, temp_domain_path, temp_problem_path, local_plan, base_constrained_dir, temp_rule_path, constraint_name):
+    try:
+        next_id = get_highest_index(domain_name, base_constrained_dir) + 1
+        
+        full_instance_name = f"{domain_name}-{next_id}-{constraint_name}"
+        target_problem_dir = os.path.join(base_constrained_dir, full_instance_name)
+        os.makedirs(target_problem_dir, exist_ok=True)
+        
+        final_problem_path = os.path.join(target_problem_dir, f"{full_instance_name}.pddl")
+        shutil.move(temp_problem_path, final_problem_path)
+        
+        rename_problem(final_problem_path, full_instance_name)
+
+        final_domain_path = os.path.join(target_problem_dir, f"{domain_name}-{next_id}-{constraint_name}-domain.pddl")
+        final_plan_path = os.path.join(target_problem_dir, f"{domain_name}-{next_id}-{constraint_name}.plan")
+
+        if os.path.exists(temp_domain_path):
+            shutil.move(temp_domain_path, final_domain_path)
+        else:
+            print(f"[ERROR util] Compiled domain not found at: {temp_domain_path}")
+            return False
+
+        if os.path.exists(local_plan):
+            shutil.move(local_plan, final_plan_path)
+        else:
+            print(f"[ERROR util] Plan solution not found at: {local_plan}")
+            return False
+        
+        if temp_rule_path and os.path.exists(temp_rule_path):
+            final_rule_path = os.path.join(target_problem_dir, "rule.txt")
+            shutil.move(temp_rule_path, final_rule_path)
+            
+        return True
+
+    except Exception as e:
+        print(f"[ERROR util] Failed to save encapsulated constrained instance: {e}")
+        return False
+    
 def clear_domain_dirs(prob_dir, plan_dir):
     removed = 0
     targets = [prob_dir, plan_dir]
@@ -95,68 +143,9 @@ def clear_domain_dirs(prob_dir, plan_dir):
                         pass
                         
     return removed
-
-
-def save_valid_instance(domain_name, candidate_path, local_plan, problems_dir, plans_dir):
-    try:
-        final_id = rename_problem(domain_name, problems_dir, target_file_path=candidate_path)
-        if final_id is not None:
-            os.makedirs(plans_dir, exist_ok=True)
-            dest_plan_path = os.path.join(plans_dir, f"{domain_name}-{final_id}.plan")
-            shutil.move(local_plan, dest_plan_path)
-            return True
-        return False
-    except Exception as e:
-        print(f"[ERROR] Failed to save instance: {e}")
-        return False
-
-
-def save_constrained_instance(domain_name, temp_domain_path, temp_problem_path, local_plan, base_constrained_dir):
-    try:
-        next_id = get_highest_index(domain_name, base_constrained_dir) + 1
-        
-        problem_folder_name = f"{domain_name}-{next_id}"
-        target_problem_dir = os.path.join(base_constrained_dir, problem_folder_name)
-        os.makedirs(target_problem_dir, exist_ok=True)
-        
-        temp_dest_prob = os.path.join(target_problem_dir, os.path.basename(temp_problem_path))
-        shutil.move(temp_problem_path, temp_dest_prob)
-        
-        if not hasattr(rename_problem, "current_indices"):
-            rename_problem.current_indices = {}
-        rename_problem.current_indices[domain_name] = next_id
-        
-        final_id = rename_problem.current_indices[domain_name]
-        rename_problem(domain_name, target_problem_dir, target_file_path=temp_dest_prob)
-
-        final_domain_path = os.path.join(target_problem_dir, f"{domain_name}-{final_id}-domain.pddl")
-        final_plan_path = os.path.join(target_problem_dir, f"{domain_name}-{final_id}.plan")
-
-        if os.path.exists(temp_domain_path):
-            shutil.move(temp_domain_path, final_domain_path)
-        else:
-            print(f"[ERROR util] Compiled domain not found at: {temp_domain_path}")
-            return False
-
-        if os.path.exists(local_plan):
-            shutil.move(local_plan, final_plan_path)
-        else:
-            print(f"[ERROR util] Plan solution not found at: {local_plan}")
-            return False
-
-        print(f"[SUCCESS] Packaged dataset folder: {target_problem_dir}/ containing files.")
-        return True
-
-    except Exception as e:
-        print(f"[ERROR util] Failed to save encapsulated constrained instance: {e}")
-        return False
     
 def get_search_config(domain_name: str) -> str:
-    """
-    Returns the optimal search configuration for Fast Downward.
-    Configured according to Plan4Past benchmarks for derived predicates.
-    """
-    if domain_name in ["sokoban", "goldminer"]:
+    if domain_name in ["sokoban", "goldminer","gridworld"]:
         return "lazy_greedy([ff()], preferred=[ff()])"
     return "astar(blind())"
 
@@ -203,44 +192,6 @@ def verify_validate_and_save(domain_name, domain_mapping, problem_path, save_cal
             except Exception:
                 pass
 
-
-def join_goal_and_rule(problem_pddl_path, ltl_rule_str):
-    """
-    Legge il problema PDDL originale, ne estrae il goal tramite AST 
-    e lo formatta per pylogics senza l'ausilio di espressioni regolari.
-    """
-    try:
-        # Carica ed esegue il parsing strutturato del problema
-        problem_parser = ProblemParser()
-        problem_obj = problem_parser(Path(problem_pddl_path).read_text(encoding="utf-8"))
-        
-        goal_expr = problem_obj.goal
-        atoms = []
-        
-        # Spacchetta l'albero sintattico dell'operatore logico del goal
-        if isinstance(goal_expr, And):
-            atoms = list(goal_expr.operands)
-        else:
-            atoms = [goal_expr]
-            
-        pltl_parts = []
-        for atom in atoms:
-            pred_name = atom.name
-            args = [term.name for term in atom.terms]
-            
-            if args:
-                formatted_args = ", ".join(args)
-                pltl_parts.append(f"{pred_name}({formatted_args})")
-            else:
-                pltl_parts.append(f"{pred_name}()")
-                
-        pylogics_goal = " & ".join(pltl_parts)
-        return f"({pylogics_goal}) & {ltl_rule_str}"
-        
-    except Exception as e:
-        print(f"[ERROR util] AST extraction failed for {problem_pddl_path}: {e}")
-        return ltl_rule_str
-
 def run_generic_pipeline_loop(target_dir, file_prefix, count, pipeline_func, status_callback=None):
     """
     Universal loop orchestrator for flat generation and LTL constraints.
@@ -280,7 +231,7 @@ def run_generic_pipeline_loop(target_dir, file_prefix, count, pipeline_func, sta
                     status_callback("failed", None)
                     
         if status_callback: 
-            status_callback("finished", {"prefix": file_prefix})
+            status_callback("finished", {"prefix": file_prefix.rstrip("-")})
             
     except KeyboardInterrupt:
         if os.path.exists(target_dir):

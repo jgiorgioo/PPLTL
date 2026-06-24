@@ -7,7 +7,7 @@ from pddl.parser.domain import DomainParser
 from pddl.parser.problem import ProblemParser
 from pylogics.parsers import parse_pltl
 from plan4past.compiler import Compiler
-from util import join_goal_and_rule
+from general_functions import join_goal_and_rule
 
 class BaseAvoidance(ABC):
     
@@ -28,8 +28,8 @@ class BaseAvoidance(ABC):
         formula_str = self._normalize_formula_for_pylogics(formula_str)
         print(f"[DEBUG NORMALIZZATO] Formula pulita per pylogics: {formula_str}")
         
-        compiled_domain_path = os.path.join(output_dir, "test_avoid_domain.pddl")
-        compiled_problem_path = os.path.join(output_dir, "test_avoid_prob.pddl")
+        compiled_domain_path = os.path.join(output_dir, "domain.pddl")
+        compiled_problem_path = os.path.join(output_dir, "problem.pddl")
         
         try:
             domain_parser = DomainParser()

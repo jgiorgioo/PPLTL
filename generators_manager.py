@@ -4,10 +4,9 @@ import random
 import subprocess
 import shutil
 from generators import PDDLGenerator
-from util import rename_problem, verify_validate_and_save, save_valid_instance, run_generic_pipeline_loop
-from validator import validate_plan 
+from utils import verify_validate_and_save, save_valid_instance, run_generic_pipeline_loop
+from utils import validate_plan 
 
-# Centralized configuration pools owned globally by the module
 MINIGRID_POOL = {
     "floorplans": [
         ("9room3.fpl", 35),
@@ -58,12 +57,10 @@ def _get_random_params(domain_name):
 
 
 def _execute_generator(generator: PDDLGenerator, domain_mapping, problems_dir, plans_dir):
-    # Initialize file paths early to keep them accessible throughout the entire function scope
     raw_capture_path = None
     target_file = None
     
     try:
-        # Snapshot the directory state before running the external generator binary
         files_before = set(os.listdir(problems_dir))
         generation_params = _get_random_params(generator.domain_name)
         command, is_stdout_mode = generator.get_command_and_mode(generation_params)
@@ -89,18 +86,20 @@ def _execute_generator(generator: PDDLGenerator, domain_mapping, problems_dir, p
                     target_plan = os.path.join(problems_dir, filename)
             
             # --- Dedicated Sokoban validation branch ---
-            # Sokoban generators natively provide a plan, skipping standard planner evaluation
             if generator.domain_name == "sokoban":
                 if target_file and target_plan and os.path.exists(target_file) and os.path.exists(target_plan):
                     sokoban_domain = domain_mapping.get("sokoban")
                     print("[*] Validating native Sokoban plan using VAL...")
+                    
                     if validate_plan(sokoban_domain, target_file, target_plan):
-                        final_id = rename_problem(generator.domain_name, problems_dir, target_file_path=target_file)
-                        if final_id is not None:
-                            os.makedirs(plans_dir, exist_ok=True)
-                            dest_plan_path = os.path.join(plans_dir, f"{generator.domain_name}-{final_id}.plan")
-                            shutil.move(target_plan, dest_plan_path)
-                            return True
+                        success_save = save_valid_instance(
+                            domain_name="sokoban",
+                            candidate_path=target_file,
+                            local_plan=target_plan,
+                            problems_dir=problems_dir,
+                            plans_dir=plans_dir
+                        )
+                        return success_save
                     else:
                         print("[WARN] Native Sokoban plan failed VAL verification. Discarding.")
                 

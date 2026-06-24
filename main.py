@@ -3,7 +3,7 @@ import sys
 from generators import MiniGridGenerator, GoldminerGenerator, SokobanGenerator
 
 from generators_manager import run_generation_loop
-from util import clear_domain_dirs
+from utils import clear_domain_dirs
 
 def ui_status_logger(event_type, data):
     """Callback function handling all screen outputs for the generation pipeline."""
@@ -16,7 +16,7 @@ def ui_status_logger(event_type, data):
     elif event_type == "failed":
         print("  └─> Discarded (Unsolvable or Validation Error).")
     elif event_type == "finished":
-        print(f"\n[OK] Success! Generated all PDDL instances and plans for {data['domain']}.")
+        print(f"\n[OK] Success! Generated all PDDL instances and plans for {data['prefix']}.")
     elif event_type == "interrupted":
         print("\n\n[WARNING] Generation interrupted by user (Ctrl+C). Cleaning up temporary files...")
 
