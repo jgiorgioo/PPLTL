@@ -6,8 +6,8 @@ from pddl.formatter import domain_to_string, problem_to_string
 from pddl.parser.domain import DomainParser
 from pddl.parser.problem import ProblemParser
 from pddl.logic.base import And
-from pylogics.parsers import parse_pltl
 from plan4past.compiler import Compiler
+from pylogics.parsers import parse_pltl
 
 class BaseConstraint(ABC):
 
@@ -15,12 +15,7 @@ class BaseConstraint(ABC):
     def generate_ltl_rule(self, target_objects: list[str] | str) -> str:
         pass
 
-    @property
-    @abstractmethod
-    def _target_token_regex(self) -> str:
-        pass
-
-    def apply_constraint(self, unconstrained_domain: str, unconstrained_problem: str,output_dir: str, target_objects: list[str] | str) -> bool:
+    def apply_constraint(self, unconstrained_domain: str, unconstrained_problem: str, output_dir: str, target_objects: list[str] | str) -> bool:
         os.makedirs(output_dir, exist_ok=True)
 
         if isinstance(target_objects, str):
@@ -79,8 +74,14 @@ class BaseConstraint(ABC):
             all_constants_to_promote = list(target_objects)
             
             for atom in atoms:
-                pred_name = atom.name
-                args = [term.name for term in atom.terms]
+                if hasattr(atom, "name") and hasattr(atom, "terms"):
+                    pred_name = atom.name
+                    args = [getattr(term, "name", str(term)) for term in atom.terms]
+                else:
+                    atom_str = str(atom).strip("() ")
+                    parts = atom_str.split()
+                    pred_name = parts[0]
+                    args = parts[1:]
                 
                 for arg in args:
                     if arg not in all_constants_to_promote:
@@ -93,7 +94,6 @@ class BaseConstraint(ABC):
                     pltl_parts.append(f"{pred_name}")
                     
             pylogics_goal = " & ".join(pltl_parts)
-            
             combined_formula = f"({pylogics_goal}) & {ltl_rule_str}"
             
             return combined_formula, all_constants_to_promote
@@ -106,40 +106,45 @@ class BaseConstraint(ABC):
         if not constant_list:
             return domain_str, problem_str
         
-        # 1. Trova dinamicamente i tipi delle costanti prima di pulire il problema
         typed_constants = []
         for token in constant_list:
-            # Cerca nel problem il token seguito dal suo tipo (es: f6-4f - LOC)
             type_match = re.search(r'\b' + re.escape(token) + r'\s+-\s+([a-zA-Z0-9_-]+)', problem_str, re.IGNORECASE)
             if type_match:
                 obj_type = type_match.group(1)
                 typed_constants.append(f"{token} - {obj_type}")
             else:
-                # Fallback se non trova il tipo
                 typed_constants.append(token)
 
-        # 2. Iniezione elastica dei requisiti nel dominio
-        if ":disjunctive-preconditions" not in domain_str:
-            domain_str = re.sub(
-                r'(\(:requirements\s+.*?)\)', 
-                r'\1 :disjunctive-preconditions)', 
-                domain_str, 
-                flags=re.DOTALL
-            )
+        req_match = re.search(r'\(:requirements\s+([^)]*)\)', domain_str, re.DOTALL | re.IGNORECASE)
+        if req_match:
+            current_requirements = req_match.group(1)
+            if ":disjunctive-preconditions" not in current_requirements:
+                new_requirements = f"(:requirements {current_requirements.strip()} :disjunctive-preconditions)"
+                domain_str = domain_str.replace(req_match.group(0), new_requirements)
+        else:
+            domain_str = re.sub(r'\(define\s+\(domain\s+[a-zA-Z0-9_-]+\)', r'\g<0>\n    (:requirements :disjunctive-preconditions)', domain_str, flags=re.IGNORECASE)
+
+        constants_text = " ".join(typed_constants)
+        const_match = re.search(r'\(:constants\s+([^)]*)\)', domain_str, re.DOTALL | re.IGNORECASE)
         
-        # 3. Gestione del blocco costanti nel dominio (ORA TIPIZZATO CORRETTAMENTE!)
-        if "(:constants" not in domain_str:
-            constants_pddl = f"\n    (:constants {' '.join(typed_constants)})"
-            req_match = re.search(r'\(:requirements.*?\)', domain_str)
-            if req_match:
-                end_req_idx = req_match.end()
-                domain_str = domain_str[:end_req_idx] + constants_pddl + domain_str[end_req_idx:]
+        if const_match:
+            existing_content = const_match.group(1).strip()
+            if "down" in existing_content and "-" not in existing_content:
+                clean_content = existing_content.replace("down", "").replace("up", "").replace("left", "").replace("right", "").strip()
+                updated_block = f"(:constants down up left right - direction {clean_content} {constants_text})"
+            else:
+                updated_block = f"(:constants {existing_content} {constants_text})"
+                
+            domain_str = domain_str.replace(const_match.group(0), updated_block)
+        else:
+            updated_req_match = re.search(r'\(:requirements\s+.*?\)', domain_str, re.DOTALL | re.IGNORECASE)
+            if updated_req_match:
+                end_idx = updated_req_match.end()
+                domain_str = domain_str[:end_idx] + f"\n    (:constants {constants_text})" + domain_str[end_idx:]
         
-        # 4. Pulizia accurata del blocco :objects nel problema
         def clean_objects_block(match):
             objects_text = match.group(1)
             for token in constant_list:
-                # Rimuove il token e il suo tipo per non lasciare rimasugli
                 objects_text = re.sub(r'\b' + re.escape(token) + r'\s+-\s+[a-zA-Z0-9_-]+\b', '', objects_text, flags=re.IGNORECASE)
                 objects_text = re.sub(r'\b' + re.escape(token) + r'\b', '', objects_text)
             
@@ -147,6 +152,6 @@ class BaseConstraint(ABC):
             objects_text = re.sub(r'-\s+[a-zA-Z0-9_-]+\s*\)$', '', objects_text.strip())
             return f"(:objects {re.sub(r'\s+', ' ', objects_text).strip()})"
         
-        problem_str = re.sub(r'\(:objects\s+(.*?)\)', clean_objects_block, problem_str)
+        problem_str = re.sub(r'\(:objects\s+(.*?)\)', clean_objects_block, problem_str, flags=re.DOTALL)
 
         return domain_str, problem_str

@@ -32,7 +32,7 @@ def main():
     
     print("Select Domain:")
     print("  [1] GridWorld")
-    print("  [2] Sokoban [Coming Soon]")
+    print("  [2] Sokoban")
     print("  [3] Goldminer")
     print("  [q] Quit")
     

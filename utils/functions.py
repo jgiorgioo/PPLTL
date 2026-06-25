@@ -89,7 +89,7 @@ def save_constrained_instance(domain_name, temp_domain_path, temp_problem_path, 
     try:
         next_id = get_highest_index(domain_name, base_constrained_dir) + 1
         
-        full_instance_name = f"{domain_name}-{next_id}-{constraint_name}"
+        full_instance_name = f"{domain_name}-{constraint_name}-{next_id}"
         target_problem_dir = os.path.join(base_constrained_dir, full_instance_name)
         os.makedirs(target_problem_dir, exist_ok=True)
         
@@ -98,8 +98,8 @@ def save_constrained_instance(domain_name, temp_domain_path, temp_problem_path, 
         
         rename_problem(final_problem_path, full_instance_name)
 
-        final_domain_path = os.path.join(target_problem_dir, f"{domain_name}-{next_id}-{constraint_name}-domain.pddl")
-        final_plan_path = os.path.join(target_problem_dir, f"{domain_name}-{next_id}-{constraint_name}.plan")
+        final_domain_path = os.path.join(target_problem_dir, f"{domain_name}-{constraint_name}-{next_id}-domain.pddl")
+        final_plan_path = os.path.join(target_problem_dir, f"{domain_name}-{constraint_name}-{next_id}.plan")
 
         if os.path.exists(temp_domain_path):
             shutil.move(temp_domain_path, final_domain_path)
@@ -193,6 +193,62 @@ def verify_validate_and_save(domain_name, domain_mapping, problem_path, save_cal
                 pass
 
 def run_generic_pipeline_loop(target_dir, file_prefix, count, pipeline_func, status_callback=None):
+    """
+    Universal loop orchestrator for flat generation and LTL constraints.
+    Manages target calculation, the while loop, Ctrl+C handling, and logs via callback.
+    """
+    target_dir = os.path.abspath(target_dir)
+    os.makedirs(target_dir, exist_ok=True)
+    
+    # PULITO E ROBUSTO: Puliamo il prefisso per contare sia file che cartelle (es. "gridworld")
+    clean_prefix = file_prefix.rstrip("-").split("-")[0].lower()
+    
+    # Contiamo quante istanze reali esistono (funziona sia per file .pddl che per sotto-cartelle)
+    files_saved = len([
+        f for f in os.listdir(target_dir) 
+        if clean_prefix in f.lower()
+    ])
+    
+    total_target = files_saved + count
+    
+    if status_callback:
+        status_callback("init", {"current": files_saved, "target": total_target})
+    
+    try:
+        while files_saved < total_target:
+            if status_callback: 
+                status_callback("attempt", None)
+            
+            success = pipeline_func()
+            
+            if success:
+                # Ricalcoliamo lo stato su disco in modo agnostico
+                files_saved = len([
+                    f for f in os.listdir(target_dir) 
+                    if clean_prefix in f.lower()
+                ])
+                if status_callback: 
+                    status_callback("success", {"current": files_saved, "target": total_target})
+            else:
+                if status_callback: 
+                    status_callback("failed", None)
+                    
+        if status_callback: 
+            status_callback("finished", {"prefix": file_prefix.rstrip("-")})
+            
+    except KeyboardInterrupt:
+        if os.path.exists(target_dir):
+            for f in os.listdir(target_dir):
+                if f.startswith("temp_") or f.startswith("tmp_"):
+                    try: 
+                        os.remove(os.path.join(target_dir, f))
+                    except: 
+                        pass
+        if status_callback: 
+            status_callback("interrupted", None)
+        sys.exit(0)
+
+def run_generic_pipeline_loop2(target_dir, file_prefix, count, pipeline_func, status_callback=None):
     """
     Universal loop orchestrator for flat generation and LTL constraints.
     Manages target calculation, the while loop, Ctrl+C handling, and logs via callback.

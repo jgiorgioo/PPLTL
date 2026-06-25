@@ -4,7 +4,6 @@ stage_env/
 __pycache__/
 utils/__pycache__/
 constraints/__pycache__/
-utils/sampling/__pycache__/
 *.pyc
 
 # --- FILE TEMPORANEI E DI TEST ---

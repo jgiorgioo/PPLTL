@@ -4,8 +4,7 @@ import random
 import subprocess
 import shutil
 from generators import PDDLGenerator
-from utils import verify_validate_and_save, save_valid_instance, run_generic_pipeline_loop
-from utils import validate_plan 
+from utils import verify_validate_and_save, save_valid_instance, run_generic_pipeline_loop, validate_plan 
 
 MINIGRID_POOL = {
     "floorplans": [
@@ -119,6 +118,7 @@ def _execute_generator(generator: PDDLGenerator, domain_mapping, problems_dir, p
         if not actual_problem_path or not os.path.exists(actual_problem_path):
             print(f"[ERROR] PDDL instance file not found at: {actual_problem_path}")
             return False
+
 
         # Package local storage parameters into a single-argument callback strategy via lambda
         save_strategy = lambda plan_path: save_valid_instance(

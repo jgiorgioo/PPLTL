@@ -2,7 +2,7 @@ import os
 import re
 import random
 import shutil
-from utils import TargetSampler
+from constraints import get_domain_constraint, TargetSampler
 from utils import run_generic_pipeline_loop, verify_validate_and_save, save_constrained_instance
 
 UNCONSTRAINED_MAP = {
@@ -24,19 +24,7 @@ class ConstraintManager:
         self.constraint_name = constraint
         self.unconstrained_dir = UNCONSTRAINED_MAP.get(domain)
         self.constrained_dir = CONSTRAINED_MAP.get(domain)
-        self.constraint_processor = self._get_constraint(domain, constraint)
-
-    def _get_constraint(self, domain: str, constraint: str):
-        if domain == "gridworld":
-            from constraints import get_gridworld_constraint
-            return get_gridworld_constraint(constraint)
-        elif domain == "sokoban":
-            pass
-        elif domain == "goldminer":
-            from constraints import get_goldminer_constraint
-            return get_goldminer_constraint(constraint)
-        else:
-            raise NotImplementedError(f"Domain '{domain}' is not supported.")
+        self.constraint_processor = get_domain_constraint(domain, constraint)
 
     def execute_pipeline(self, problem_file_name: str) -> bool:
         unconstrained_domain_path = os.path.join(self.unconstrained_dir, "domain.pddl")

@@ -155,3 +155,8 @@ indipendenza dall'ambiente operativo (Portabilità Cross-Platform):
 ===============================================================================
 
 ho modificato il generatore di sokoban per restituire loc-1-2 al posto di loc_1_2
+
+creare cartelle uncostrained/domain e mettere il file domain.pddl nelle realtive carelle, gridwolrd l fa da solutions
+perchè in generatore crea il dominio, gli altri no
+
+rinominare il domino di goldminer dal gold-miner-typed a goldminer
