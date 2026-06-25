@@ -76,7 +76,6 @@ class BaseConstraint(ABC):
                 atoms = [goal_expr]
                 
             pltl_parts = []
-            
             all_constants_to_promote = list(target_objects)
             
             for atom in atoms:
@@ -94,6 +93,7 @@ class BaseConstraint(ABC):
                     pltl_parts.append(f"{pred_name}")
                     
             pylogics_goal = " & ".join(pltl_parts)
+            
             combined_formula = f"({pylogics_goal}) & {ltl_rule_str}"
             
             return combined_formula, all_constants_to_promote
@@ -102,29 +102,51 @@ class BaseConstraint(ABC):
             print(f"[ERROR {self.__class__.__name__}] AST extraction failed for {problem_pddl_path}: {e}")
             return ltl_rule_str, list(target_objects)
         
-    def _execute_cleanup(self, domain_str: str, problem_str: str, constant_list:list) -> tuple[str, str]:
-
+    def _execute_cleanup(self, domain_str: str, problem_str: str, constant_list: list) -> tuple[str, str]:
         if not constant_list:
             return domain_str, problem_str
         
+        # 1. Trova dinamicamente i tipi delle costanti prima di pulire il problema
+        typed_constants = []
+        for token in constant_list:
+            # Cerca nel problem il token seguito dal suo tipo (es: f6-4f - LOC)
+            type_match = re.search(r'\b' + re.escape(token) + r'\s+-\s+([a-zA-Z0-9_-]+)', problem_str, re.IGNORECASE)
+            if type_match:
+                obj_type = type_match.group(1)
+                typed_constants.append(f"{token} - {obj_type}")
+            else:
+                # Fallback se non trova il tipo
+                typed_constants.append(token)
+
+        # 2. Iniezione elastica dei requisiti nel dominio
         if ":disjunctive-preconditions" not in domain_str:
-            domain_str = domain_str.replace(
-                ":requirements :conditional-effects :derived-predicates :negative-preconditions :strips",
-                ":requirements :conditional-effects :derived-predicates :negative-preconditions :strips :disjunctive-preconditions"
+            domain_str = re.sub(
+                r'(\(:requirements\s+.*?)\)', 
+                r'\1 :disjunctive-preconditions)', 
+                domain_str, 
+                flags=re.DOTALL
             )
         
+        # 3. Gestione del blocco costanti nel dominio (ORA TIPIZZATO CORRETTAMENTE!)
         if "(:constants" not in domain_str:
-            constants_pddl = f"\n    (:constants {' '.join(constant_list)})"
+            constants_pddl = f"\n    (:constants {' '.join(typed_constants)})"
             req_match = re.search(r'\(:requirements.*?\)', domain_str)
             if req_match:
                 end_req_idx = req_match.end()
                 domain_str = domain_str[:end_req_idx] + constants_pddl + domain_str[end_req_idx:]
         
+        # 4. Pulizia accurata del blocco :objects nel problema
         def clean_objects_block(match):
             objects_text = match.group(1)
             for token in constant_list:
-                objects_text = re.sub(r'\b' + token + r'\b', '', objects_text)
+                # Rimuove il token e il suo tipo per non lasciare rimasugli
+                objects_text = re.sub(r'\b' + re.escape(token) + r'\s+-\s+[a-zA-Z0-9_-]+\b', '', objects_text, flags=re.IGNORECASE)
+                objects_text = re.sub(r'\b' + re.escape(token) + r'\b', '', objects_text)
+            
+            objects_text = re.sub(r'-\s+[a-zA-Z0-9_-]+\s+(?=-\s+[a-zA-Z0-9_-]+)', '', objects_text)
+            objects_text = re.sub(r'-\s+[a-zA-Z0-9_-]+\s*\)$', '', objects_text.strip())
             return f"(:objects {re.sub(r'\s+', ' ', objects_text).strip()})"
         
         problem_str = re.sub(r'\(:objects\s+(.*?)\)', clean_objects_block, problem_str)
+
         return domain_str, problem_str

@@ -14,9 +14,12 @@ def _extract_objects_from_problem(domain: str, problem_path: str) -> list:
     if domain == "gridworld":
         found_cells = re.findall(r'\bp[0-9]+\b', content)
         objects = list(set(found_cells))
+
+    elif domain == "goldminer":
+        soft_rocks = re.findall(r"\(soft-rock-at\s+([^\s\)]+)\)", content)
+        objects = list(set(soft_rocks))
         
     return objects
-
 
 def _extract_objects_from_plan(domain: str, plan_path: str) -> list:
     """Parses the .plan file to extract chronological tracking of actions."""
@@ -40,15 +43,23 @@ def _extract_objects_from_plan(domain: str, plan_path: str) -> list:
                     if tracked_elements[-1] != destination_cell:
                         tracked_elements.append(destination_cell)
 
+            elif domain == "goldminer":
+                match_detonate = re.search(r"\(detonate[-_]?bomb\s+\S+\s+([^\s\)]+)\)", line)
+                if match_detonate:
+                    soft_rock = match_detonate.group(1)
+                    if not tracked_elements or tracked_elements[-1] != soft_rock:
+                        tracked_elements.append(soft_rock)
+
+    if domain == "gridworld" and tracked_elements:
+        tracked_elements = tracked_elements[:-1]
+
     return tracked_elements
 
 def extract_avoidance(domain: str, plan_path: str, problem_path: str, blacklist: set) -> any:
     plan_objects = _extract_objects_from_plan(domain, plan_path)
     if not plan_objects:
         return None
-    goal_obj = plan_objects[-1]
-    
-    candidates = [o for o in plan_objects if o != goal_obj and o not in blacklist]
+    candidates = [o for o in plan_objects if o not in blacklist]
     return random.choice(candidates) if candidates else None
 
 
@@ -65,7 +76,6 @@ def extract_ordering(domain: str, plan_path: str, problem_path: str, blacklist: 
     if len(plan_objects) < 2:
         return None
         
-    last_obj = plan_objects[-1]
     max_sampling_attempts = 200
     attempts = 0
     
@@ -75,7 +85,7 @@ def extract_ordering(domain: str, plan_path: str, problem_path: str, blacklist: 
         j = random.randint(i + 1, len(plan_objects) - 1)
         obj_a, obj_b = plan_objects[i], plan_objects[j]
         
-        if obj_a != obj_b and obj_b != last_obj:
+        if obj_a != obj_b:
             candidate_pair = (obj_b, obj_a)
             if candidate_pair not in blacklist:
                 return candidate_pair

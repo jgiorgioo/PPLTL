@@ -28,12 +28,13 @@ class ConstraintManager:
 
     def _get_constraint(self, domain: str, constraint: str):
         if domain == "gridworld":
-            from constraints.gridworld_constraints import get_gridworld_constraint
+            from constraints import get_gridworld_constraint
             return get_gridworld_constraint(constraint)
         elif domain == "sokoban":
             pass
         elif domain == "goldminer":
-            pass
+            from constraints import get_goldminer_constraint
+            return get_goldminer_constraint(constraint)
         else:
             raise NotImplementedError(f"Domain '{domain}' is not supported.")
 

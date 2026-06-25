@@ -33,7 +33,7 @@ def main():
     print("Select Domain:")
     print("  [1] GridWorld")
     print("  [2] Sokoban [Coming Soon]")
-    print("  [3] Goldminer [Coming Soon]")
+    print("  [3] Goldminer")
     print("  [q] Quit")
     
     domain_choice = get_choice("Select domain option: ", ["1", "2", "3", "q"])
