@@ -1,7 +1,7 @@
 import os
 import sys
-from generators_manager import GeneratorsManager
-from generators import MiniGridGenerator, GoldminerGenerator, SokobanGenerator
+from generation.generators_manager import GeneratorsManager
+from generation.generators import MiniGridGenerator, GoldminerGenerator, SokobanGenerator
 from utils import clear_domain_dirs
 
 DOMAIN_MAPPING = {

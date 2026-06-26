@@ -1,7 +1,7 @@
 import os
 import random
 
-# Pool di configurazione spostati nel contesto dei generatori (coesione)
+# Configuration pools for random parameter generation per domain
 MINIGRID_POOL = {
     "floorplans": [
         ("9room3.fpl", 35), ("9room2.fpl", 35), ("4room3.fpl", 10),
@@ -15,19 +15,19 @@ SOKOBAN_POOL = {"grid_size_range": (5, 10), "boxes_range": (2, 5)}
 
 
 class PDDLGenerator:
-    """Interfaccia astratta per i generatori di istanze PDDL."""
+    """Abstract interface for PDDL instance generator configurations."""
     def __init__(self, domain_name: str, base_dir: str):
         self.domain_name = domain_name
-        # Ogni generatore conosce le proprie sottocartelle di destinazione
         self.problems_dir = os.path.abspath(os.path.join(base_dir, domain_name))
         self.plans_dir = os.path.abspath(os.path.join(self.problems_dir, "solutions"))
 
     def prepare_execution(self) -> tuple[list[str], bool, int]:
-        """Genera parametri casuali e restituisce (comando, is_stdout_mode, seed)."""
+        """Generates random parameters and returns the CLI command for the subprocess."""
         pass
 
 
 class MiniGridGenerator(PDDLGenerator):
+    """Native Python generator for Gridworld instances."""
     def __init__(self, base_dir: str = "plans/uncostrained"):
         super().__init__("gridworld", base_dir)
         self.script_path = os.path.abspath(os.path.join("pddl-generators", "minigrid", "mini_grid.py"))
@@ -49,6 +49,7 @@ class MiniGridGenerator(PDDLGenerator):
 
 
 class GoldminerGenerator(PDDLGenerator):
+    """Compiled C executable generator for Goldminer instances."""
     def __init__(self, base_dir: str = "plans/uncostrained"):
         super().__init__("goldminer", base_dir)
         self.executable_path = os.path.abspath(os.path.join("pddl-generators", "goldminer", "gold-miner-generator"))
@@ -58,11 +59,13 @@ class GoldminerGenerator(PDDLGenerator):
         rows = random.randint(*GOLDMINER_POOL["rows_range"])
         cols = random.randint(*GOLDMINER_POOL["cols_range"])
 
+        # This generator outputs the raw PDDL content directly to stdout
         command = [self.executable_path, "-r", str(rows), "-c", str(cols), "-s", str(seed)]
         return command, True, seed
 
 
 class SokobanGenerator(PDDLGenerator):
+    """Native Python generator for Sokoban instances (creates problem + solution simultaneously)."""
     def __init__(self, base_dir: str = "plans/uncostrained"):
         super().__init__("sokoban", base_dir)
         self.script_path = os.path.abspath(os.path.join("pddl-generators", "sokoban", "sokoban.py"))

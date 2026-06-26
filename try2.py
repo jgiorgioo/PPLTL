@@ -8,7 +8,7 @@ from pathlib import Path
 # Assicuriamoci che i moduli locali siano visibili
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
-from constraints_manager import ConstraintManager
+from constraints.constraints_manager import ConstraintManager
 from utils import get_search_config
 
 def run_full_diagnostic_test():

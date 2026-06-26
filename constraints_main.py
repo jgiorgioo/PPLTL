@@ -1,6 +1,6 @@
 import sys
 
-from constraints_manager import ConstraintManager
+from constraints.constraints_manager import ConstraintManager
 
 def ui_status_logger(event_type, data):
     """Callback function handling all screen outputs for the LTL constraint pipeline."""
