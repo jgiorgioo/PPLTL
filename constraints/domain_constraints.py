@@ -55,10 +55,17 @@ class ObligationSokoban(BaseConstraint):
         return f"O(at-robot_{obligation_cell})"
     
 class OrderingSokoban(BaseConstraint):
+    # NOTA SULLA FORMULA NEGATIVA: I goal di Sokoban sono PERMANENTI (le scatole restano lì).
+    # Poiché Plan4Past valuta il passato solo dallo stato finale, una formula positiva 
+    # O(A & O(B)) vedrebbe le scatole già entrambe sul goal, risultando sempre vera.
+    # Usiamo !O(atom_A & !O(atom_B)) per vietare lo stato intermedio in cui A viene archiviata 
+    # mentre B non è ancora MAI arrivata sul suo goal, forzando così l'inversione dell'ordine.
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        cell_a = target_objects[0]
-        cell_b = target_objects[1]
-        return f"O(at-robot_{cell_b} & O(at-robot_{cell_a}))"
+        box_A, loc_A = target_objects[0], target_objects[1]
+        box_B, loc_B = target_objects[2], target_objects[3]
+        atom_A = f"at_{box_A}_{loc_A}"
+        atom_B = f"at_{box_B}_{loc_B}"
+        return f"!O({atom_A} & !O({atom_B}))"
 
 
 # =============================================================================

@@ -149,13 +149,78 @@ class SokobanExtractor(BaseExtractor):
         return r'\bloc-[0-9]+-[0-9]+\b'
 
     def _get_goal_regex(self) -> str | None:
-        # Questa regex serve per filtrare l'AST del goal del problema PDDL.
-        # Identifica le celle che fanno parte del goal originario per proteggerle (per l'Avoidance).
+        # trova solo le celle
         return r'^loc-[0-9]+-[0-9]+$'
 
-    def extract_ordering(self) -> tuple | None:
-        # Per ora lo teniamo disattivato come d'accordo, restituisce None
-        return None
+    def _get_sokoban_goal_regex(self) -> str:
+        # serve per recuperare il goal integrale at box cella
+        return r'at\s+(box[0-9]+)\s+(loc-[0-9]+-[0-9]+)'
+
+
+    def _extract_boxes_from_plan_backwards(self, sokoban_goals_map: dict) -> list[str]:
+        box_reverse_order = []
+        with open(self.plan_path, "r", encoding="utf-8") as f:
+            plan_lines = list(reversed(f.readlines()))
+            
+        for line in plan_lines:
+            line = line.strip().lower()
+            if "push" in line:
+                found_boxes = re.findall(r'\bbox[0-9]+\b', line)
+                for b in found_boxes:
+                    if b in sokoban_goals_map and b not in box_reverse_order:
+                        box_reverse_order.append(b)
+                        
+        return list(reversed(box_reverse_order))
+    
+    def extract_ordering(self) -> list[str] | None:
+        """
+        Estrae una coppia casuale di scatole dal piano rispettando l'ordine
+        cronologico inverso di archiviazione finale sul goal.
+        Genera in modo deterministico tutte le combinazioni possibili per evitare
+        cicli randomici inefficienti.
+        """
+        if not os.path.exists(self.problem_path) or not os.path.exists(self.plan_path):
+            return None
+            
+        try:
+            # 1. Recupero del blocco goal e mappatura Scatola -> Cella dal problema PDDL
+            with open(self.problem_path, "r", encoding="utf-8") as f:
+                prob_content = f.read().lower()
+            
+            goal_block = re.search(r'\(:goal\s+(.*?)\)\s*\)\s*$', prob_content, re.DOTALL)
+            if not goal_block: 
+                return None
+                
+            sokoban_goals_map = dict(re.findall(self._get_sokoban_goal_regex(), goal_block.group(1)))
+            
+            # 2. Otteniamo l'array cronologico delle scatole leggendo il piano a ritroso
+            box_chronological_order = self._extract_boxes_from_plan_backwards(sokoban_goals_map)
+            if len(box_chronological_order) < 2: 
+                return None
+
+            # 3. Generiamo deterministicamente tutte le combinazioni reali di coppie (i < j)
+            possible_candidates = []
+            for i in range(len(box_chronological_order) - 1):
+                for j in range(i + 1, len(box_chronological_order)):
+                    box_A = box_chronological_order[i]
+                    loc_A = sokoban_goals_map[box_A]
+                    box_B = box_chronological_order[j]
+                    loc_B = sokoban_goals_map[box_B]
+                    
+                    possible_candidates.append([box_A, loc_A, box_B, loc_B])
+
+            # 4. Consumiamo la lista estraendo a caso finché non ne troviamo una fuori dalla blacklist
+            while possible_candidates:
+                candidate = random.choice(possible_candidates)
+                possible_candidates.remove(candidate)  # Lo rimuoviamo subito per evitare duplicati
+                
+                if str(candidate) not in self.blacklist:
+                    return candidate
+                    
+            return None
+        except Exception:
+            return None
+
 # =============================================================================
 # FACTORY INTERFACCIA DI COORDINAMENTO
 # =============================================================================
