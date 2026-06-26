@@ -15,7 +15,13 @@ SOKOBAN_POOL = {"grid_size_range": (5, 10), "boxes_range": (2, 5)}
 
 
 class PDDLGenerator:
-    """Abstract interface for PDDL instance generator configurations."""
+    """
+    Abstract interface supplying domain-specific configurations for the actual generators.
+    
+    Provides the execution manager with the target directories for saving output files, 
+    the absolute paths to the actual generator and domain file, and a formatted system 
+    command string ready for subprocess execution.
+    """
     def __init__(self, domain_name: str, base_dir: str):
         self.domain_name = domain_name
         self.problems_dir = os.path.abspath(os.path.join(base_dir, domain_name))
@@ -27,7 +33,6 @@ class PDDLGenerator:
 
 
 class MiniGridGenerator(PDDLGenerator):
-    """Native Python generator for Gridworld instances."""
     def __init__(self, base_dir: str = "plans/uncostrained"):
         super().__init__("gridworld", base_dir)
         self.script_path = os.path.abspath(os.path.join("pddl-generators", "minigrid", "mini_grid.py"))
@@ -49,7 +54,6 @@ class MiniGridGenerator(PDDLGenerator):
 
 
 class GoldminerGenerator(PDDLGenerator):
-    """Compiled C executable generator for Goldminer instances."""
     def __init__(self, base_dir: str = "plans/uncostrained"):
         super().__init__("goldminer", base_dir)
         self.executable_path = os.path.abspath(os.path.join("pddl-generators", "goldminer", "gold-miner-generator"))
@@ -65,7 +69,6 @@ class GoldminerGenerator(PDDLGenerator):
 
 
 class SokobanGenerator(PDDLGenerator):
-    """Native Python generator for Sokoban instances (creates problem + solution simultaneously)."""
     def __init__(self, base_dir: str = "plans/uncostrained"):
         super().__init__("sokoban", base_dir)
         self.script_path = os.path.abspath(os.path.join("pddl-generators", "sokoban", "sokoban.py"))
