@@ -1,8 +1,9 @@
 import os
 import re
-import random
 import shutil
-from constraints import get_domain_constraint, TargetSampler
+from .domain_constraints import get_domain_constraint
+from .target_sampler import TargetSampler
+from .problem_sampler import ProblemSampler
 from utils import run_generic_pipeline_loop, verify_validate_and_save, save_constrained_instance
 
 UNCONSTRAINED_MAP = {
@@ -27,19 +28,21 @@ class ConstraintManager:
         self.constraint_processor = get_domain_constraint(domain, constraint)
 
     def execute_pipeline(self, problem_file_name: str) -> bool:
-        unconstrained_domain_path = os.path.join(self.unconstrained_dir, "domain.pddl")
+        # problem_file_name is e.g., "3Hroom3/gridworld-3Hroom3-2.pddl"
         unconstrained_problem_path = os.path.join(self.unconstrained_dir, problem_file_name)
+        stratum_folder = os.path.dirname(problem_file_name)  
+        pure_file_name = os.path.basename(problem_file_name)  
+        unconstrained_domain_path = os.path.join(self.unconstrained_dir, "domain.pddl")
         
-        idx_match = re.search(r'-([0-9]+)\.pddl$', problem_file_name)
-        instance_idx = idx_match.group(1) if idx_match else "0"
-
-        flat_plan_path = os.path.join(self.unconstrained_dir, "solutions", f"{self.domain}-{instance_idx}.plan")
+        # Dead simple extension swap to find the plan file
+        plan_file_name = pure_file_name.replace(".pddl", ".plan")
+        flat_plan_path = os.path.join(self.unconstrained_dir, stratum_folder, "solutions", plan_file_name)
         
         if not os.path.exists(flat_plan_path):
-            print(f"[WARN] Baseline plan missing for {problem_file_name}. Skipping.")
+            print(f"[WARN] Baseline plan missing for {pure_file_name} at {flat_plan_path}. Skipping.")
             return False
             
-        # 1. Istanziamo il Sampler (che internamente gestirà la sua blacklist)
+        # 1. Instantiate the TargetSampler
         sampler = TargetSampler(
             domain=self.domain,
             constraint_name=self.constraint_name,
@@ -47,16 +50,16 @@ class ConstraintManager:
             problem_path=unconstrained_problem_path
         )
 
-        # 2. Passiamo il sampler al gestore dell'esplorazione
+        # 2. Hand over to exploration directly passing pure_file_name
         return self._explore_candidates_until_solvable(
             sampler=sampler,
-            instance_idx=instance_idx,
             unconstrained_domain_path=unconstrained_domain_path,
             unconstrained_problem_path=unconstrained_problem_path,
-            problem_file_name=problem_file_name
+            problem_file_name=pure_file_name
         )
 
-    def _explore_candidates_until_solvable(self, sampler: TargetSampler, instance_idx: str, unconstrained_domain_path: str, unconstrained_problem_path: str, problem_file_name: str) -> bool:
+
+    def _explore_candidates_until_solvable(self, sampler: TargetSampler, unconstrained_domain_path: str, unconstrained_problem_path: str, problem_file_name: str) -> bool:
         attempts_count = 0
         max_attempts = 20
         
@@ -64,10 +67,10 @@ class ConstraintManager:
             attempts_count += 1
             
             target_object = sampler.sample_next_target()
-            
-            print(f"[INFO] [Attempt {attempts_count}/{max_attempts}] Testing target '{target_object}' on instance {self.domain}-{instance_idx}...")
+            print(f"[INFO] [Attempt {attempts_count}/{max_attempts}] Testing target '{target_object}' on {problem_file_name}...")
 
-            temp_out_dir = os.path.join(self.constrained_dir, self.constraint_name, f"temp_run_{instance_idx}")
+            # Clean and static temporary folder name
+            temp_out_dir = os.path.join(self.constrained_dir, self.constraint_name, "temp_run")
             os.makedirs(temp_out_dir, exist_ok=True)
             
             try:
@@ -110,8 +113,7 @@ class ConstraintManager:
                     print(f"[SUCCESS] Solvable target found: '{target_object}' for {problem_file_name}!")
                     return True
                 else:
-                    print(f"[WARN] Target '{target_object}' led to an unsolvable problem. Blacklisting and trying next...")
-                    # Aggiorniamo la blacklist del sampler così il prossimo giro sa cosa evitare
+                    print(f"[WARN] Target '{target_object}' led to an unsolvable problem. Blacklisting...")
                     sampler.mark_as_failed(target_object)
 
             finally:
@@ -127,19 +129,22 @@ class ConstraintManager:
 
     def run_loop(self, count: int, status_callback=None):
         destination_dir = os.path.join(self.constrained_dir, self.constraint_name)
+
+        problem_sampler = ProblemSampler(
+            unconstrained_base_dir=self.unconstrained_dir,
+            domain_name=self.domain
+        )
         
         def atomic_pipeline():
-            all_problems = [
-                f for f in os.listdir(self.unconstrained_dir) 
-                if f.startswith(f"{self.domain}-") and f.endswith(".pddl")
-            ]
-            if not all_problems:
-                print(f"[ERROR] No unconstrained problems found in {self.unconstrained_dir}")
+            if not problem_sampler.has_problems():
+                print(f"[ERROR] No valid problems or stratums found on disk for {self.unconstrained_dir}")
                 return False
             
-            chosen_problem_file = random.choice(all_problems)
-            return self.execute_pipeline(chosen_problem_file)
-
+            problem_path = problem_sampler.sample_next_problem()
+            full_problem_path = os.path.relpath(problem_path, self.unconstrained_dir)
+            
+            return self.execute_pipeline(full_problem_path)
+        
         run_generic_pipeline_loop(
             target_dir=destination_dir,
             file_prefix=f"{self.domain}-",

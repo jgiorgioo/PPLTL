@@ -55,7 +55,7 @@ class ProblemSampler:
     def has_problems(self) -> bool:
         return len(self.stratums) > 0
 
-    def sample_next_problem(self) -> tuple[str, str]:
+    def sample_next_problem(self) -> str:
         """Estrae un file dalla memoria rispettando le percentuali dei pesi dello stratum."""
         if not self.has_problems():
             return None, None
@@ -71,4 +71,4 @@ class ProblemSampler:
         file_list = self.stratums[chosen_stratum]
         chosen_file_path = random.choice(file_list)
         
-        return chosen_file_path, os.path.basename(chosen_file_path)
+        return chosen_file_path
