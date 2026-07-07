@@ -12,7 +12,7 @@ DOMAIN_MAPPING = {
 
 def ui_status_logger(event_type, data):
     if event_type == "init":
-        print(f"Initial progress: {data['current']} files found. Final target: {data['target']}")
+        print(f"[INFO] Starting a new generation session. Target: {data['target']} new instances.")
     elif event_type == "attempt":
         print("[DEBUG] Attempting instance generation and validation...", flush=True)
     elif event_type == "success":

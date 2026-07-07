@@ -1,9 +1,0 @@
-per alcuni problemi, vedi gridworld-14 in obligation, la posizione relativa degli ostacoli e dell agente rende lunga la ricerca di un candidato per il vincolo
-ordering in gridworld va bene con le celle o prima sulle locked shapes? tante istanze sicuro si incastrano per il momento lo faccio solo sulle genriche celle
-nome del dominio constrained è sempre lo stesso del generatore
-in grifworld i problemi basati su stanze piccole sono spesso non possono essere vincolati
-in goldiner il primo problema che ho provato con un vicolo di obligation ha retiuito una soluzione 3 volte più economica del piano originale
-
-ho provato con diverse euristiche ma se non si usa ff conpreferred ff si sforano empre i 300 seconi
-tra eager greedy, lazy greedy e eager wstar risultati simili lazy sembra il più veloce eager è 
-praticamente uguale, eager wstar sembra essere un po più preciso (170 vs 194) ma ci vuole più tempo

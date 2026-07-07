@@ -323,12 +323,12 @@ def main(args: argparse.Namespace):
     logger.info(f'Generated {nr_generated} instances, out of {args.num_instances} requested')
 
     # Copy the domain file to the results folder
-    domain_src = Path(__file__).parent / 'domain.pddl'
-    domain_dst = args.results / 'domain.pddl'
-    if domain_src != domain_dst and not os.path.exists(domain_dst):
-        import shutil
-        shutil.copy(domain_src, domain_dst)
-        logger.info(f'Copied domain file to {domain_dst}')
+    #domain_src = Path(__file__).parent / 'domain.pddl'
+    #domain_dst = args.results / 'domain.pddl'
+    #if domain_src != domain_dst and not os.path.exists(domain_dst):
+    #    import shutil
+    #    shutil.copy(domain_src, domain_dst)
+    #    logger.info(f'Copied domain file to {domain_dst}')
 
 
 if __name__ == '__main__':

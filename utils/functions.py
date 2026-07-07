@@ -54,14 +54,14 @@ def rename_problem(target_file_path, new_prob_name):
         print(f"[ERROR util] Failed to patch PDDL problem header: {e}")
         return False
 
-def save_valid_instance(domain_name, candidate_path, local_plan, problems_dir, plans_dir):
+def save_valid_instance(domain_name, candidate_path, local_plan, problems_dir, plans_dir, stratum):
     try:
         final_id = get_highest_index(domain_name, problems_dir) + 1
         
-        new_prob_filename = f"{domain_name}-{final_id}.pddl"
+        new_prob_filename = f"{domain_name}-{stratum}-{final_id}.pddl"
         dest_prob_path = os.path.join(problems_dir, new_prob_filename)
         
-        dest_plan_filename = f"{domain_name}-{final_id}.plan"
+        dest_plan_filename = f"{domain_name}-{stratum}-{final_id}.plan"
         dest_plan_path = os.path.join(plans_dir, dest_plan_filename)
         
         os.makedirs(problems_dir, exist_ok=True)
@@ -195,40 +195,30 @@ def verify_validate_and_save(domain_name, domain_mapping, problem_path, save_cal
 def run_generic_pipeline_loop(target_dir, file_prefix, count, pipeline_func, status_callback=None):
     """
     Universal loop orchestrator for flat generation and LTL constraints.
-    Manages target calculation, the while loop, Ctrl+C handling, and logs via callback.
+    Manages session progress counters, Ctrl+C handling, and logs via callback.
     """
     target_dir = os.path.abspath(target_dir)
     os.makedirs(target_dir, exist_ok=True)
     
-    # PULITO E ROBUSTO: Puliamo il prefisso per contare sia file che cartelle (es. "gridworld")
-    clean_prefix = file_prefix.rstrip("-").split("-")[0].lower()
-    
-    # Contiamo quante istanze reali esistono (funziona sia per file .pddl che per sotto-cartelle)
-    files_saved = len([
-        f for f in os.listdir(target_dir) 
-        if clean_prefix in f.lower()
-    ])
-    
-    total_target = files_saved + count
+    # Inizializzazione esplicita nello scope locale della funzione
+    successful_generations = 0
     
     if status_callback:
-        status_callback("init", {"current": files_saved, "target": total_target})
+        status_callback("init", {"current": 0, "target": count})
     
     try:
-        while files_saved < total_target:
+        # Usiamo il contatore locale in modo lineare
+        while successful_generations < count:
             if status_callback: 
                 status_callback("attempt", None)
             
+            # Eseguiamo la execute_generator passata come lambda dal manager
             success = pipeline_func()
             
             if success:
-                # Ricalcoliamo lo stato su disco in modo agnostico
-                files_saved = len([
-                    f for f in os.listdir(target_dir) 
-                    if clean_prefix in f.lower()
-                ])
+                successful_generations = successful_generations + 1
                 if status_callback: 
-                    status_callback("success", {"current": files_saved, "target": total_target})
+                    status_callback("success", {"current": successful_generations, "target": count})
             else:
                 if status_callback: 
                     status_callback("failed", None)
@@ -237,66 +227,15 @@ def run_generic_pipeline_loop(target_dir, file_prefix, count, pipeline_func, sta
             status_callback("finished", {"prefix": file_prefix.rstrip("-")})
             
     except KeyboardInterrupt:
+        # Pulizia ricorsiva dei file temporanei rimasti appesi
         if os.path.exists(target_dir):
-            for f in os.listdir(target_dir):
-                if f.startswith("temp_") or f.startswith("tmp_"):
-                    try: 
-                        os.remove(os.path.join(target_dir, f))
-                    except: 
-                        pass
-        if status_callback: 
-            status_callback("interrupted", None)
-        sys.exit(0)
-
-def run_generic_pipeline_loop2(target_dir, file_prefix, count, pipeline_func, status_callback=None):
-    """
-    Universal loop orchestrator for flat generation and LTL constraints.
-    Manages target calculation, the while loop, Ctrl+C handling, and logs via callback.
-    """
-    target_dir = os.path.abspath(target_dir)
-    os.makedirs(target_dir, exist_ok=True)
-    
-    # Count how many valid items already exist based solely on the prefix
-    files_saved = len([
-        f for f in os.listdir(target_dir) 
-        if f.startswith(file_prefix)
-    ])
-    
-    total_target = files_saved + count
-    
-    if status_callback:
-        status_callback("init", {"current": files_saved, "target": total_target})
-    
-    try:
-        while files_saved < total_target:
-            if status_callback: 
-                status_callback("attempt", None)
-            
-            success = pipeline_func()
-            
-            if success:
-                # Re-evaluate disk state using only the prefix filter
-                files_saved = len([
-                    f for f in os.listdir(target_dir) 
-                    if f.startswith(file_prefix)
-                ])
-                if status_callback: 
-                    status_callback("success", {"current": files_saved, "target": total_target})
-            else:
-                if status_callback: 
-                    status_callback("failed", None)
-                    
-        if status_callback: 
-            status_callback("finished", {"prefix": file_prefix.rstrip("-")})
-            
-    except KeyboardInterrupt:
-        if os.path.exists(target_dir):
-            for f in os.listdir(target_dir):
-                if f.startswith("temp_") or f.startswith("tmp_"):
-                    try: 
-                        os.remove(os.path.join(target_dir, f))
-                    except: 
-                        pass
+            for root, _, files in os.walk(target_dir):
+                for f in files:
+                    if f.startswith("temp_") or f.startswith("tmp_"):
+                        try: 
+                            os.remove(os.path.join(root, f))
+                        except: 
+                            pass
         if status_callback: 
             status_callback("interrupted", None)
         sys.exit(0)
