@@ -5,6 +5,13 @@ from .exceptions import MissingBinaryError, PipelineTimeoutError
 VAL_TIMEOUT = 10
 
 def _get_default_val_path():
+    """
+    NOTE: Override this return statement with your custom path if 
+    VAL is installed in a different location.
+    
+    Ensure the casing matches your compiled binary (e.g., 'validate' vs 'Validate').
+    """
+    # Dynamic approach (Recommended for default home installations)
     return os.path.abspath(os.path.join(os.path.expanduser("~"), "VAL", "build", "bin", "Validate"))
 
 def validate_plan(domain_file, problem_file, plan_file, val_path=None):

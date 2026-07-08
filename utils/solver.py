@@ -1,9 +1,18 @@
 import os
 import subprocess
 from .exceptions import MissingBinaryError, PipelineTimeoutError
-
 def _get_default_fd_path():
+    """
+    NOTE: Override this return statement with your custom path if 
+    Fast Downward is installed in a different location.
+    
+    You can use an absolute string path or dynamic resolution via os.path.expanduser.
+    """
+    # Dynamic approach (Recommended for default home installations)
     return os.path.abspath(os.path.join(os.path.expanduser("~"), "downward", "fast-downward.py"))
+    
+    # Alternative approach (Hardcoded absolute path if needed)
+    # return "/opt/downward/fast-downward.py"
 
 def _run_planner(domain_file, problem_file, search_config, timeout, fd_path):
     fd_script = os.path.abspath(fd_path) if fd_path else _get_default_fd_path()

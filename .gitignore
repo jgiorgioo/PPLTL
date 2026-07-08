@@ -12,6 +12,7 @@ output.sas
 test_val.py
 todo
 toask
+README_Guida_PDDL.txt
 
 # --- OUTPUT DEI BENCHMARK ---
 plans/constrained/
