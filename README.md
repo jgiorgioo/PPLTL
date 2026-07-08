@@ -27,6 +27,8 @@ A modular and robust Python framework designed for the automatic generation, for
 │   └── validator.py             # Verification interface with VAL
 ├── generation_main.py           # Entry point for unconstrained base instance generation
 └── constraints_main.py          # Entry point for LTL constraint compilation
+```
+
 
 ## Prerequisites
 
@@ -46,6 +48,7 @@ Before applying any logical constraint, you need to populate the dataset with ba
 
 ```bash
 python generation_main.py
+```
 
 The tool will save the verified `.pddl` files and their corresponding `.plan` solutions inside the `plans/unconstrained/domain/*/` directory.
 
@@ -54,6 +57,7 @@ Once the unconstrained base instances are generated, you can enrich them by inje
 
 ```bash
 python constraints_main.py
+```
 
 * **The Constraint Type** to apply:
   * **Avoidance:** Prevents certain states or interactions with specific target objects.
