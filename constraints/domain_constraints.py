@@ -1,75 +1,63 @@
-from abc import ABC
 from constraints.base_constraint import BaseConstraint
 
 # =============================================================================
-# VINCOLI DOMINIO: GRIDWORLD
+# DOMAIN CONSTRAINTS: GRIDWORLD
 # =============================================================================
 class AvoidanceGridworld(BaseConstraint):
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        avoid_cell = target_objects[0]
-        return f"!O(at-robot_{avoid_cell})"
+        return f"!O(at-robot_{target_objects[0]})"
 
 class ObligationGridworld(BaseConstraint):
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        obligation_cell = target_objects[0]
-        return f"O(at-robot_{obligation_cell})"
+        return f"O(at-robot_{target_objects[0]})"
     
 class OrderingGridworld(BaseConstraint):
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        cell_a = target_objects[0]
-        cell_b = target_objects[1]
+        cell_a, cell_b = target_objects[0], target_objects[1]
         return f"O(at-robot_{cell_b} & O(at-robot_{cell_a}))"
 
 
 # =============================================================================
-# VINCOLI DOMINIO: GOLDMINER
+# DOMAIN CONSTRAINTS: GOLDMINER
 # =============================================================================
 class AvoidanceGoldminer(BaseConstraint):
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        cell = target_objects[0]
-        return f"!O(clear_{cell})"
+        return f"!O(clear_{target_objects[0]})"
 
 class ObligationGoldminer(BaseConstraint):
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        cell = target_objects[0]
-        return f"O(clear_{cell})"
+        return f"O(clear_{target_objects[0]})"
     
 class OrderingGoldminer(BaseConstraint):
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        cell_a = target_objects[0]
-        cell_b = target_objects[1]
+        cell_a, cell_b = target_objects[0], target_objects[1]
         return f"O(clear_{cell_b} & O(clear_{cell_a}))"
 
 
 # =============================================================================
-# VINCOLI DOMINIO: SOKOBAN
+# DOMAIN CONSTRAINTS: SOKOBAN
 # =============================================================================
 class AvoidanceSokoban(BaseConstraint):
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        avoid_cell = target_objects[0]
-        return f"!O(at-robot_{avoid_cell})"
+        return f"!O(at-robot_{target_objects[0]})"
 
 class ObligationSokoban(BaseConstraint):
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        obligation_cell = target_objects[0]
-        return f"O(at-robot_{obligation_cell})"
+        return f"O(at-robot_{target_objects[0]})"
     
 class OrderingSokoban(BaseConstraint):
-    # NOTA SULLA FORMULA NEGATIVA: I goal di Sokoban sono PERMANENTI (le scatole restano lì).
-    # Poiché Plan4Past valuta il passato solo dallo stato finale, una formula positiva 
-    # O(A & O(B)) vedrebbe le scatole già entrambe sul goal, risultando sempre vera.
-    # Usiamo !O(atom_A & !O(atom_B)) per vietare lo stato intermedio in cui A viene archiviata 
-    # mentre B non è ancora MAI arrivata sul suo goal, forzando così l'inversione dell'ordine.
+    # Note on the negative formula: Sokoban goals are PERMANENT (boxes remain in place).
+    # Since Plan4Past evaluates the past exclusively from the final state, a positive 
+    # formula O(A & O(B)) would see both boxes already at their goals, making it always true.
+    # We use !O(atom_A & !O(atom_B)) to forbid the intermediate state where A is stored 
+    # while B has NEVER reached its goal yet, effectively forcing the inversion of the ordering.
     def generate_ltl_rule(self, target_objects: list[str]) -> str:
-        box_A, loc_A = target_objects[0], target_objects[1]
-        box_B, loc_B = target_objects[2], target_objects[3]
-        atom_A = f"at_{box_A}_{loc_A}"
-        atom_B = f"at_{box_B}_{loc_B}"
-        return f"!O({atom_A} & !O({atom_B}))"
+        box_A, loc_A, box_B, loc_B = target_objects
+        return f"!O(at_{box_A}_{loc_A} & !O(at_{box_B}_{loc_B}))"
 
 
 # =============================================================================
-# FACTORY DI DISPATCH GENERALE
+# GENERAL DISPATCH FACTORY
 # =============================================================================
 ALL_CONSTRAINTS_MAP = {
     "gridworld": {
@@ -89,7 +77,7 @@ ALL_CONSTRAINTS_MAP = {
     }
 }
 
-def get_domain_constraint(domain_name: str, constraint_name: str):
+def get_domain_constraint(domain_name: str, constraint_name: str) -> BaseConstraint:
     domain_map = ALL_CONSTRAINTS_MAP.get(domain_name.lower())
     if not domain_map:
         raise NotImplementedError(f"Domain '{domain_name}' is not supported.")

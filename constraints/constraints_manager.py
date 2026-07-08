@@ -1,77 +1,64 @@
 import os
+import tempfile
 import shutil
 from .domain_constraints import get_domain_constraint
 from .target_sampler import TargetSampler
 from .problem_sampler import ProblemSampler
 from utils import run_generic_pipeline_loop, verify_validate_and_save, save_constrained_instance
 
-UNCONSTRAINED_MAP = {
-    "gridworld": os.path.abspath(os.path.join("plans", "unconstrained", "gridworld")),
-    "goldminer": os.path.abspath(os.path.join("plans", "unconstrained", "goldminer")),
-    "sokoban": os.path.abspath(os.path.join("plans", "unconstrained", "sokoban"))
-}
-
-CONSTRAINED_MAP = {
-    "gridworld": os.path.abspath(os.path.join("plans", "constrained", "gridworld")),
-    "goldminer": os.path.abspath(os.path.join("plans", "constrained", "goldminer")),
-    "sokoban": os.path.abspath(os.path.join("plans", "constrained", "sokoban"))
-}
-
 class ConstraintManager:
-
-    def __init__(self, domain: str, constraint: str):
+    """Coordinates the selection of unconstrained instances and applies LTL constraints to them."""
+    def __init__(self, domain: str, constraint: str, unconstrained_mapping: dict, constrained_mapping: dict):
         self.domain = domain
         self.constraint_name = constraint
-        self.unconstrained_dir = UNCONSTRAINED_MAP.get(domain)
-        self.constrained_dir = CONSTRAINED_MAP.get(domain)
+        # Injected mappings dynamically from the main interface
+        self.unconstrained_dir = unconstrained_mapping.get(domain)
+        self.constrained_dir = constrained_mapping.get(domain)
         self.constraint_processor = get_domain_constraint(domain, constraint)
 
     def execute_pipeline(self, problem_file_name: str) -> bool:
-        unconstrained_problem_path = os.path.join(self.unconstrained_dir, problem_file_name)
-        stratum_folder = os.path.dirname(problem_file_name)  
-        pure_file_name = os.path.basename(problem_file_name)  
-        unconstrained_domain_path = os.path.join(self.unconstrained_dir, "domain.pddl")
-        
-        # Dead simple extension swap to find the plan file
-        plan_file_name = pure_file_name.replace(".pddl", ".plan")
-        flat_plan_path = os.path.join(self.unconstrained_dir, stratum_folder, "solutions", plan_file_name)
-        
-        if not os.path.exists(flat_plan_path):
-            print(f"[WARN] Baseline plan missing for {pure_file_name} at {flat_plan_path}. Skipping.")
-            return False
+        """Runs the compile-validate-save sequence on a selected unconstrained PDDL problem."""
+        try:
+            unconstrained_problem_path = os.path.join(self.unconstrained_dir, problem_file_name)
+            stratum_folder = os.path.dirname(problem_file_name)  
+            pure_file_name = os.path.basename(problem_file_name)  
+            unconstrained_domain_path = os.path.join(self.unconstrained_dir, "domain.pddl")
             
-        # 1. Instantiate the TargetSampler
-        sampler = TargetSampler(
-            domain=self.domain,
-            constraint_name=self.constraint_name,
-            plan_path=flat_plan_path,
-            problem_path=unconstrained_problem_path
-        )
+            # Locate the baseline plan file companion
+            plan_file_name = pure_file_name.replace(".pddl", ".plan")
+            flat_plan_path = os.path.join(self.unconstrained_dir, stratum_folder, "solutions", plan_file_name)
+            
+            if not os.path.exists(flat_plan_path):
+                return False
+                
+            # Instantiate the stateful sampler for target objects/tuples
+            sampler = TargetSampler(
+                domain=self.domain,
+                constraint_name=self.constraint_name,
+                plan_path=flat_plan_path,
+                problem_path=unconstrained_problem_path
+            )
 
-        # 2. Hand over to exploration directly passing pure_file_name
-        return self._explore_candidates_until_solvable(
-            sampler=sampler,
-            unconstrained_domain_path=unconstrained_domain_path,
-            unconstrained_problem_path=unconstrained_problem_path,
-            problem_file_name=pure_file_name
-        )
+            return self._explore_candidates_until_solvable(
+                sampler=sampler,
+                unconstrained_domain_path=unconstrained_domain_path,
+                unconstrained_problem_path=unconstrained_problem_path
+            )
+        except Exception:
+            return False
 
-
-    def _explore_candidates_until_solvable(self, sampler: TargetSampler, unconstrained_domain_path: str, unconstrained_problem_path: str, problem_file_name: str) -> bool:
+    def _explore_candidates_until_solvable(self, sampler: TargetSampler, unconstrained_domain_path: str, unconstrained_problem_path: str) -> bool:
+        """Iterates through LTL target candidates until a solvable compiled domain-problem pair is found."""
         attempts_count = 0
         max_attempts = 20
         
         while sampler.has_candidates() and attempts_count < max_attempts:
             attempts_count += 1
-            
             target_object = sampler.sample_next_target()
-            print(f"[INFO] [Attempt {attempts_count}/{max_attempts}] Testing target '{target_object}' on {problem_file_name}...")
 
-            # Clean and static temporary folder name
-            temp_out_dir = os.path.join(self.constrained_dir, self.constraint_name, "temp_run")
-            os.makedirs(temp_out_dir, exist_ok=True)
-            
-            try:
+            # Create an isolated, secure temporary directory that auto-deletes on exit
+            with tempfile.TemporaryDirectory(prefix=f"pddl_constraint_{self.domain}_") as temp_out_dir:
+                
                 compilation_success = self.constraint_processor.apply_constraint(
                     unconstrained_domain_path,
                     unconstrained_problem_path,
@@ -99,6 +86,7 @@ class ConstraintManager:
                         constraint_name=self.constraint_name
                     )
 
+                # Validate using the external automated planner pipeline
                 success = verify_validate_and_save(
                     domain_name=self.domain,
                     domain_mapping={self.domain: compiled_domain},
@@ -108,24 +96,14 @@ class ConstraintManager:
                 )
                 
                 if success:
-                    print(f"[SUCCESS] Solvable target found: '{target_object}' for {problem_file_name}!")
                     return True
-                else:
-                    print(f"[WARN] Target '{target_object}' led to an unsolvable problem. Blacklisting...")
-                    sampler.mark_as_failed(target_object)
-
-            finally:
-                if os.path.exists(temp_out_dir):
-                    shutil.rmtree(temp_out_dir, ignore_errors=True)
-
-        if attempts_count >= max_attempts:
-            print(f"[INFO] Reached maximum limit of {max_attempts} attempts for {problem_file_name}.")
-        else:
-            print(f"[INFO] All available candidates exhausted for {problem_file_name} without any valid solution.")
-            
+                
+                sampler.mark_as_failed(target_object)
+                    
         return False
 
     def run_loop(self, count: int, status_callback=None):
+        """Launches the shared pipeline loop with an atomic execution function wrapper."""
         destination_dir = os.path.join(self.constrained_dir, self.constraint_name)
 
         problem_sampler = ProblemSampler(
@@ -135,7 +113,6 @@ class ConstraintManager:
         
         def atomic_pipeline():
             if not problem_sampler.has_problems():
-                print(f"[ERROR] No valid problems or stratums found on disk for {self.unconstrained_dir}")
                 return False
             
             problem_path = problem_sampler.sample_next_problem()

@@ -2,7 +2,7 @@ initial state,goals,rule -> in stringhe
 
 produrre stringhe per goal stato inizale e piano, come liste di fluenti
 
-mettere tutto su un hugging dace dataset
+mettere tutto su un hugging face dataset
 
 randomizzare i nomi degli oggetti e traslare le griglie, es da a1 a10 per generalizzare
 

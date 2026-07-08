@@ -70,7 +70,7 @@ def save_valid_instance(domain_name, candidate_path, local_plan, problems_dir, p
         
     return True
 
-def count_unconstrained_total_instances(domain_name, base_unconstrained_dir):
+def count_unconstrained_instances(domain_name, base_unconstrained_dir):
     if not os.path.exists(base_unconstrained_dir):
         return 0
     total_count = 0
@@ -81,42 +81,24 @@ def count_unconstrained_total_instances(domain_name, base_unconstrained_dir):
     return total_count
 
 def save_constrained_instance(domain_name, temp_domain_path, temp_problem_path, local_plan, base_constrained_dir, temp_rule_path, constraint_name):
-    try:
-        next_id = get_highest_index(domain_name, base_constrained_dir) + 1
-        
-        full_instance_name = f"{domain_name}-{constraint_name}-{next_id}"
-        target_problem_dir = os.path.join(base_constrained_dir, full_instance_name)
-        os.makedirs(target_problem_dir, exist_ok=True)
-        
-        final_problem_path = os.path.join(target_problem_dir, f"{full_instance_name}.pddl")
-        shutil.move(temp_problem_path, final_problem_path)
-        
-        rename_problem(final_problem_path, full_instance_name)
+    next_id = get_highest_index(domain_name, base_constrained_dir) + 1
+    
+    full_instance_name = f"{domain_name}-{constraint_name}-{next_id}"
+    target_problem_dir = os.path.join(base_constrained_dir, full_instance_name)
+    os.makedirs(target_problem_dir, exist_ok=True)
+    
+    final_problem_path = os.path.join(target_problem_dir, f"{full_instance_name}.pddl")
+    shutil.move(temp_problem_path, final_problem_path)
+    
+    rename_problem(final_problem_path, full_instance_name)
 
-        final_domain_path = os.path.join(target_problem_dir, f"{domain_name}-{constraint_name}-{next_id}-domain.pddl")
-        final_plan_path = os.path.join(target_problem_dir, f"{domain_name}-{constraint_name}-{next_id}.plan")
-
-        if os.path.exists(temp_domain_path):
-            shutil.move(temp_domain_path, final_domain_path)
-        else:
-            print(f"[ERROR util] Compiled domain not found at: {temp_domain_path}")
-            return False
-
-        if os.path.exists(local_plan):
-            shutil.move(local_plan, final_plan_path)
-        else:
-            print(f"[ERROR util] Plan solution not found at: {local_plan}")
-            return False
+    shutil.move(temp_domain_path, os.path.join(target_problem_dir, f"{domain_name}-{constraint_name}-{next_id}-domain.pddl"))
+    shutil.move(local_plan, os.path.join(target_problem_dir, f"{domain_name}-{constraint_name}-{next_id}.plan"))
+    
+    if temp_rule_path and os.path.exists(temp_rule_path):
+        shutil.move(temp_rule_path, os.path.join(target_problem_dir, "rule.txt"))
         
-        if temp_rule_path and os.path.exists(temp_rule_path):
-            final_rule_path = os.path.join(target_problem_dir, "rule.txt")
-            shutil.move(temp_rule_path, final_rule_path)
-            
-        return True
-
-    except Exception as e:
-        print(f"[ERROR util] Failed to save encapsulated constrained instance: {e}")
-        return False
+    return True
     
 def count_constrained_instances(domain_name, constraint_folder_path):
     return get_highest_index(domain_name, constraint_folder_path)
@@ -194,17 +176,6 @@ def run_generic_pipeline_loop(target_dir, file_prefix, count, pipeline_func, sta
 
             
     except KeyboardInterrupt:
-        # TODO: REMOVE THIS OS.WALK CLEANUP ONCE CONSTRAINTS PIPELINE IS REFACTORED TO USE /TMP
-        # Flat generation now relies on secure tempfile.TemporaryDirectory context management,
-        # making local recursive folder cleaning obsolete for unconstrained pipelines.
-        if os.path.exists(target_dir):
-            for root, _, files in os.walk(target_dir):
-                for f in files:
-                    if f.startswith("temp_") or f.startswith("tmp_"):
-                        try: 
-                            os.remove(os.path.join(root, f))
-                        except: 
-                            pass
         if status_callback: 
             status_callback("interrupted", None)
         sys.exit(0)

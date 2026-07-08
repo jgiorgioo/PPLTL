@@ -2,7 +2,7 @@ import os
 import sys
 from generation.generators_manager import GeneratorsManager
 from generation.generators import MiniGridGenerator, GoldminerGenerator, SokobanGenerator
-from utils.functions import count_unconstrained_total_instances
+from utils import count_unconstrained_instances
 
 DOMAIN_MAPPING = {
     "gridworld": os.path.abspath(os.path.join("plans", "unconstrained", "gridworld", "domain.pddl")),
@@ -91,7 +91,7 @@ def main():
             continue
 
         base_path = os.path.dirname(domain_path)
-        existing_count = count_unconstrained_total_instances(domain_key, base_path)
+        existing_count = count_unconstrained_instances(domain_key, base_path)
         print(f"\n[STATUS] Found {existing_count} existing {domain_key} instances.")
         print("--------------------------------------------------")
         
