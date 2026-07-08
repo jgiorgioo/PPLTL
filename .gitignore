@@ -1,24 +1,19 @@
-# --- AMBIENTE E CACHE ---
-stage_env/
+
 __pycache__/
 utils/__pycache__/
 constraints/__pycache__/
 constraints/__pycache__/
 *.pyc
 
-# --- FILE TEMPORANEI E DI TEST ---
 sas_plan
 output.sas
 test_val.py
 todo
 toask
 README_Guida_PDDL.txt
+pddl-generators/goldminer/gold-miner-generator
+preprocessing.txt
 
-# --- OUTPUT DEI BENCHMARK ---
 plans/constrained/
 plans/unconstrained/*/*/
 !plans/unconstrained/*/domain.pddl
-
-pddl-generators/goldminer/gold-miner-generator
-README_Guida_PDDL.txt
-preprocessing.txt

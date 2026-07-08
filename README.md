@@ -16,11 +16,20 @@ A Python tool designed for generating, validating, and compiling Automated Plann
 
 ```text
 ├── constraints/
-│   ├── __init__.py
-│   ├── base_constraint.py       # Logic for injection and cleanup of LTL constraints
-│   └── constraints_manager.py   # Candidate exploration and sampling logic
+│   ├── base_constraint.py       # Core logic for LTL injection and Plan4Past wrapper
+│   ├── constraints_manager.py   # Main constrained pipeline loop management
+│   ├── domain_constraints.py    # Domain-specific LTL formula definitions
+│   ├── problem_sampler.py       # Logic for sampling and selecting base unconstrained instances
+│   ├── target_extractors.py     # Functions to parse and extract valid LTL targets from PDDL files
+│   └── target_sampler.py        # Logic for sampling valid combinations of extracted targets
+├── generation/
+│   ├── generators.py            # Python functions that wrap and launch the domain-specific scripts
+│   └── generators_manager.py    # Unconstrained pipeline management logic
+├── pddl-generators/
+│   ├── goldminer/               # C++ source code and Makefile for Goldminer generator
+│   ├── gridworld/               # Python source code and instance templates for GridWorld
+│   └── sokoban/                 # Patched Python source code for Sokoban generator
 ├── utils/
-│   ├── __init__.py
 │   ├── exceptions.py            # Global exception handler and dispatcher
 │   ├── functions.py             # Shared utilities (I/O, indexing, loop orchestration)
 │   ├── solver.py                # Execution wrapper for Fast Downward
