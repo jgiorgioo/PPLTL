@@ -1,14 +1,14 @@
-# PDDL+LTL Dataset Generator & Compiler Tool
+# PDDL+LTL Dataset Generator & Compiler
 
-A modular and robust Python framework designed for the automatic generation, formal validation, and compilation of Automated Planning benchmarks (PDDL). The system supports both flat instance generation (unconstrained) divided by difficulty strata, and the dynamic injection of Linear Temporal Logic constraints over the past/present (PLTL/LTL) via Plan4Past integration, ensuring pure and mathematically sound synthetic datasets.
+A Python tool designed for generating, validating, and compiling Automated Planning benchmarks (PDDL). The project supports the generation of standard base instances (unconstrained) grouped by difficulty layers, and the injection of Linear Temporal Logic constraints (LTL) using Plan4Past to create constrained planning datasets.
 
 ## Key Features
 
-* **Multi-Domain Generation:** Native support for classic planning domains including GridWorld, Sokoban, and Goldminer.
-* **Feasibility Filtering and Strict Validation:** Every generated instance is preemptively tested with the Fast Downward planner and formally validated through VAL before being archived into the definitive dataset.
-* **Integrated LTL Constraint Compiler:** Automatically extracts valid targets and objects from base problems, compiles logical rules (Avoidance, Obligation, Ordering), and injects them into the domain by transforming them into standard PDDL axioms.
-* **Centralized Error Handling:** Fault-tolerant architecture based on a universal generic loop and a centralized exception manager natively handling timeouts, missing solver binaries, and logically unsolvable constraints.
-* **Interactive CLI Interface:** Intuitive terminal-driven menus to configure parallel or sequential batch-generation sessions.
+* **Supported Domains:** Generation logic for standard planning domains such as GridWorld, Sokoban, and Goldminer.
+* **Automated Validation:** Every generated instance is tested with the Fast Downward planner and checked through VAL to ensure the problem is solvable and the plan is correct.
+* **LTL Constraint Injection:** Automatically extracts valid targets and objects from base problems to compile rules (Avoidance, Obligation, Ordering) into standard PDDL axioms.
+* **Error and Exception Handling:** Centralized management for common pipeline issues, such as planner timeouts, missing binaries, or instances that become unsolvable after applying constraints.
+* **CLI Interface:** Terminal-based interactive menus to select domains, difficulty settings, and the number of instances to generate.
 
 ---
 
