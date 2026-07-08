@@ -1,5 +1,4 @@
 import os
-import re
 import shutil
 from .domain_constraints import get_domain_constraint
 from .target_sampler import TargetSampler
@@ -28,7 +27,6 @@ class ConstraintManager:
         self.constraint_processor = get_domain_constraint(domain, constraint)
 
     def execute_pipeline(self, problem_file_name: str) -> bool:
-        # problem_file_name is e.g., "3Hroom3/gridworld-3Hroom3-2.pddl"
         unconstrained_problem_path = os.path.join(self.unconstrained_dir, problem_file_name)
         stratum_folder = os.path.dirname(problem_file_name)  
         pure_file_name = os.path.basename(problem_file_name)  

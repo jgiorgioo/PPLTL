@@ -64,8 +64,7 @@ class MiniGridGenerator(PDDLGenerator):
         floorplan_weights = [item[1] for item in MINIGRID_POOL["floorplans"]]
         chosen_fpl = random.choices(floorplan_options, weights=floorplan_weights, k=1)[0]
         nshapes = random.randint(*MINIGRID_POOL["nshapes_range"])
-
-        # Update dynamic state fields inside the instance
+        
         self._current_stratum_tag = self.get_stratum_tag(chosen_fpl=chosen_fpl)
         self._current_problems_dir = os.path.join(self.base_dir, self.domain_name, self._current_stratum_tag)
         self._current_plans_dir = os.path.join(self._current_problems_dir, "solutions")
@@ -96,7 +95,6 @@ class GoldminerGenerator(PDDLGenerator):
         rows = random.randint(*GOLDMINER_POOL["rows_range"])
         cols = random.randint(*GOLDMINER_POOL["cols_range"])
 
-        # Update dynamic state fields inside the instance
         self._current_stratum_tag = self.get_stratum_tag(rows=rows, cols=cols)
         self._current_problems_dir = os.path.join(self.base_dir, self.domain_name, self._current_stratum_tag)
         self._current_plans_dir = os.path.join(self._current_problems_dir, "solutions")
@@ -118,7 +116,6 @@ class SokobanGenerator(PDDLGenerator):
         grid_size = random.randint(*SOKOBAN_POOL["grid_size_range"])
         boxes = random.randint(*SOKOBAN_POOL["boxes_range"])
 
-        # Update dynamic state fields inside the instance
         self._current_stratum_tag = self.get_stratum_tag(boxes=boxes)
         self._current_problems_dir = os.path.join(self.base_dir, self.domain_name, self._current_stratum_tag)
         self._current_plans_dir = os.path.join(self._current_problems_dir, "solutions")

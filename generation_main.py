@@ -2,7 +2,7 @@ import os
 import sys
 from generation.generators_manager import GeneratorsManager
 from generation.generators import MiniGridGenerator, GoldminerGenerator, SokobanGenerator
-from utils import clear_domain_dirs
+from utils.functions import count_unconstrained_total_instances
 
 DOMAIN_MAPPING = {
     "gridworld": os.path.abspath(os.path.join("plans", "uncostrained", "gridworld", "domain.pddl")),
@@ -10,19 +10,45 @@ DOMAIN_MAPPING = {
     "sokoban":   os.path.abspath(os.path.join("plans", "uncostrained", "sokoban", "domain.pddl"))
 }
 
+GENERATOR_FACTORY = {
+    "1": MiniGridGenerator,
+    "2": SokobanGenerator,
+    "3": GoldminerGenerator
+}
+
 def ui_status_logger(event_type, data):
-    if event_type == "init":
-        print(f"[INFO] Starting a new generation session. Target: {data['target']} new instances.")
-    elif event_type == "attempt":
-        print("[DEBUG] Attempting instance generation and validation...", flush=True)
-    elif event_type == "success":
-        print(f"  └─> VALIDATED AND SAVED! -> Progress: {data['current']}/{data['target']}")
-    elif event_type == "failed":
-        print("  └─> Discarded (Unsolvable or Validation Error).")
-    elif event_type == "finished":
-        print(f"\n[OK] Success! Generated all PDDL instances and plans for {data['prefix']}.")
-    elif event_type == "interrupted":
-        print("\n\n[WARNING] Generation interrupted by user (Ctrl+C). Cleaning up temporary files...")
+    match event_type:
+        case "init":
+            print(f"Starting a new generation session. Target: {data['target']} new instances.")
+            
+        case "attempt":
+            print("Attempting instance generation and validation...", flush=True)
+            
+        case "success":
+            print(f"  └─> VALIDATED AND SAVED! -> Progress: {data['current']}/{data['target']}")
+            
+        case "failed":
+            print("  └─> Discarded (Unsolvable or Validation Error).")
+            
+        case "finished":
+            print(f"\nSuccess! Generated all PDDL instances and plans for {data['prefix']}.")
+            
+        case "interrupted":
+            print("\n\n[WARNING] Generation interrupted by user (Ctrl+C). Cleaning up temporary files...")
+
+        case "timeout_error":
+            print(f"\n[TIMEOUT ERROR] {data['details']}")
+
+        case "binary_error":
+            print(f"\n[MISSING BINARY ERROR] {data['details']}")
+            print(" -> Check your configuration and paths on the server.")
+
+        case "file_error":
+            print(f"\n[FILE ERROR] {data['details']}")
+            print(" -> The current seed will be skipped. Moving to the next attempt.")
+
+        case  "unknown_error":
+            print(f"\n[UNKNOWN ERROR] {data['details']}")
 
 def get_choice(prompt, valid_choices):
     while True:
@@ -31,38 +57,9 @@ def get_choice(prompt, valid_choices):
             return choice
         print(f"Invalid input. Please choose among: {', '.join(valid_choices)}")
 
-def handle_clear_datasets():
-    print("--------------------------------------------------")
-    print("\n--- SELECT DOMAIN TO CLEAR ---")
-    print(" [1] GridWorld")
-    print(" [2] Sokoban")
-    print(" [3] Goldminer")
-    print(" [c] Cancel")
-    
-    sub_choice = input("Select domain: ").strip().lower()
-    mapping = {"1": "gridworld", "2": "sokoban", "3": "goldminer"}
-    
-    if sub_choice == "c" or sub_choice not in mapping:
-        print("[CANCELLED] Directory clearing aborted.")
-        return
-        
-    domain_folder = mapping[sub_choice]
-    prob_path = os.path.abspath(os.path.join("plans", "uncostrained", domain_folder))
-    plan_path = os.path.join(prob_path, "solutions")
-    
-    print(f"\n[WARNING] You are about to clear:")
-    print(f" -> Problems: {prob_path}")
-    print(f" -> Plans:     {plan_path}")
-    confirm = input(f"Are you sure you want to delete all {domain_folder} data? (y/n): ").strip().lower()
-    
-    if confirm == 'y':
-        count = clear_domain_dirs(prob_path, plan_path)
-        print(f"[OK] Cleanup finished. Removed {count} file(s).")
-        print("[INFO] 'domain.pddl' has been safely preserved.")
-    else:
-        print("[CANCELLED] Directory clearing aborted.")
-
 def main():
+    manager = GeneratorsManager(domain_mapping=DOMAIN_MAPPING)
+
     while True:
         print("\n==================================================")
         print("            PDDL INSTANCE GENERATOR TOOL          ")
@@ -71,51 +68,52 @@ def main():
         print("  [1] GridWorld (MiniGrid)")
         print("  [2] Sokoban")
         print("  [3] Goldminer")
-        print("  [4] Clear dataset folders")
         print("  [q] Quit")
         
-        choice = get_choice("Select an option: ", ["1", "2", "3", "4", "q"])
+        choice = get_choice("Select an option: ", ["1", "2", "3", "q"])
         
         if choice == "q":
             print("Exiting tool. Goodbye!")
             sys.exit(0)
             
-        if choice == "4":
-            handle_clear_datasets()
-            print("==================================================")
+        generator_class = GENERATOR_FACTORY.get(choice)
+        if not generator_class:
             continue
             
-        try:
-            problems_num = int(input("How many instances do you want to generate?: ").strip())
-            if problems_num <= 0: 
-                raise ValueError
-        except ValueError:
-            print("[ERROR] Please enter a valid positive integer.")
+        generator_instance = generator_class()
+        domain_key = generator_instance.domain_name 
+        domain_path = DOMAIN_MAPPING.get(domain_key)
+
+        if not domain_path or not os.path.exists(domain_path):
+            print(f"\n[CRITICAL ERROR] Domain file missing at: '{domain_path}'")
+            print("Please restore the domain file before generating new instances.")
+            print("==================================================")
             continue
 
+        base_path = os.path.dirname(domain_path)
+        existing_count = count_unconstrained_total_instances(domain_key, base_path)
+        print(f"\n[STATUS] Found {existing_count} existing {domain_key} instances.")
         print("--------------------------------------------------")
         
         try:
-            manager = GeneratorsManager(domain_mapping=DOMAIN_MAPPING)
+            problems_num = int(input("How many new instances do you want to generate?: ").strip())
+            if problems_num <= 0: 
+                print("[ERROR] Please enter a valid positive integer.")
+                continue
+
+            print("--------------------------------------------------")
             
-            generator_factory = {
-                "1": MiniGridGenerator,
-                "2": SokobanGenerator,
-                "3": GoldminerGenerator
-            }
-            
-            generator_class = generator_factory.get(choice)
-            if generator_class:
-                generator_instance = generator_class() 
+            manager.run_loop(
+                generator=generator_instance,
+                count=problems_num,
+                status_callback=ui_status_logger
+            )
                 
-                manager.run_loop(
-                    generator=generator_instance,
-                    count=problems_num,
-                    status_callback=ui_status_logger
-                )
+        except ValueError:
+            print("[ERROR] Invalid numeric input. Please try again.")
         except Exception as e:
-            print(f"\n❌ [CRASH ENCOUNTERED] Si è verificato un errore critico durante la generazione:\n -> {e}")
-            print("[INFO] Ripristino del menu principale in corso...")
+            print(f"\n[CRASH] A critical error occurred during execution:\n -> {e}")
+            print("[INFO] Resetting system and recovering main menu...")
             
         print("==================================================")
 
