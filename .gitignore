@@ -18,3 +18,5 @@ README_Guida_PDDL.txt
 plans/constrained/
 plans/unconstrained/*/*/
 !plans/unconstrained/*/domain.pddl
+
+pddl-generators/goldminer/gold-miner-generator
