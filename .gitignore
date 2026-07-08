@@ -20,3 +20,5 @@ plans/unconstrained/*/*/
 !plans/unconstrained/*/domain.pddl
 
 pddl-generators/goldminer/gold-miner-generator
+README_Guida_PDDL.txt
+preprocessing.txt
