@@ -18,31 +18,29 @@ class PDDLGenerator:
     """
     Abstract interface supplying domain-specific configurations for the actual generators.
     """
-    def __init__(self, domain_name: str, base_dir: str):
+    def __init__(self, domain_name: str, base_dir: str = "plans/unconstrained"):
         self.domain_name = domain_name
         self.base_dir = os.path.abspath(base_dir)
-        # Dynamic internal state fields managed through getter properties
         self._current_problems_dir = None
         self._current_plans_dir = None
         self._current_stratum_tag = None
 
     def get_problems_dir(self) -> str:
-        """Returns the problems directory computed during the last execution preparation."""
         return self._current_problems_dir
 
     def get_plans_dir(self) -> str:
-        """Returns the plans/solutions directory computed during the last execution preparation."""
         return self._current_plans_dir
 
     def get_current_stratum(self) -> str:
-        """Returns the stratum tag identified during the last execution preparation."""
         return self._current_stratum_tag
 
+    def _update_execution_paths(self, stratum_tag: str):
+        """Centrally computes and updates the target directories for the current execution."""
+        self._current_stratum_tag = stratum_tag
+        self._current_problems_dir = os.path.join(self.base_dir, self.domain_name, stratum_tag)
+        self._current_plans_dir = os.path.join(self._current_problems_dir, "solutions")
+
     def prepare_execution(self) -> tuple[list[str], bool, int]:
-        """
-        Generates random parameters, updates state properties, and returns execution details.
-        Returns: command, is_stdout_mode, seed
-        """
         pass
 
     def get_stratum_tag(self, **kwargs) -> str:
@@ -50,8 +48,8 @@ class PDDLGenerator:
 
 
 class MiniGridGenerator(PDDLGenerator):
-    def __init__(self, base_dir: str = "plans/uncostrained"):
-        super().__init__("gridworld", base_dir)
+    def __init__(self):
+        super().__init__("gridworld")
         self.script_path = os.path.abspath(os.path.join("pddl-generators", "minigrid", "mini_grid.py"))
         self.floorplans_folder = os.path.abspath(os.path.join("pddl-generators", "minigrid", "floorplans"))
 
@@ -65,9 +63,8 @@ class MiniGridGenerator(PDDLGenerator):
         chosen_fpl = random.choices(floorplan_options, weights=floorplan_weights, k=1)[0]
         nshapes = random.randint(*MINIGRID_POOL["nshapes_range"])
         
-        self._current_stratum_tag = self.get_stratum_tag(chosen_fpl=chosen_fpl)
-        self._current_problems_dir = os.path.join(self.base_dir, self.domain_name, self._current_stratum_tag)
-        self._current_plans_dir = os.path.join(self._current_problems_dir, "solutions")
+        stratum = self.get_stratum_tag(chosen_fpl=chosen_fpl)
+        self._update_execution_paths(stratum)
 
         command = [
             "python3", self.script_path, chosen_fpl, str(nshapes),
@@ -78,8 +75,8 @@ class MiniGridGenerator(PDDLGenerator):
 
 
 class GoldminerGenerator(PDDLGenerator):
-    def __init__(self, base_dir: str = "plans/uncostrained"):
-        super().__init__("goldminer", base_dir)
+    def __init__(self):
+        super().__init__("goldminer")
         self.executable_path = os.path.abspath(os.path.join("pddl-generators", "goldminer", "gold-miner-generator"))
 
     def get_stratum_tag(self, rows: int = None, cols: int = None, **kwargs) -> str:
@@ -95,17 +92,17 @@ class GoldminerGenerator(PDDLGenerator):
         rows = random.randint(*GOLDMINER_POOL["rows_range"])
         cols = random.randint(*GOLDMINER_POOL["cols_range"])
 
-        self._current_stratum_tag = self.get_stratum_tag(rows=rows, cols=cols)
-        self._current_problems_dir = os.path.join(self.base_dir, self.domain_name, self._current_stratum_tag)
-        self._current_plans_dir = os.path.join(self._current_problems_dir, "solutions")
+        # Chiamata pulita alla madre per aggiornare i path
+        stratum = self.get_stratum_tag(rows=rows, cols=cols)
+        self._update_execution_paths(stratum)
 
         command = [self.executable_path, "-r", str(rows), "-c", str(cols), "-s", str(seed)]
         return command, True, seed
 
 
 class SokobanGenerator(PDDLGenerator):
-    def __init__(self, base_dir: str = "plans/uncostrained"):
-        super().__init__("sokoban", base_dir)
+    def __init__(self):
+        super().__init__("sokoban")
         self.script_path = os.path.abspath(os.path.join("pddl-generators", "sokoban", "sokoban.py"))
 
     def get_stratum_tag(self, boxes: int = None, **kwargs) -> str:
@@ -116,9 +113,8 @@ class SokobanGenerator(PDDLGenerator):
         grid_size = random.randint(*SOKOBAN_POOL["grid_size_range"])
         boxes = random.randint(*SOKOBAN_POOL["boxes_range"])
 
-        self._current_stratum_tag = self.get_stratum_tag(boxes=boxes)
-        self._current_problems_dir = os.path.join(self.base_dir, self.domain_name, self._current_stratum_tag)
-        self._current_plans_dir = os.path.join(self._current_problems_dir, "solutions")
+        stratum = self.get_stratum_tag(boxes=boxes)
+        self._update_execution_paths(stratum)
 
         command = [
             "python3", self.script_path,

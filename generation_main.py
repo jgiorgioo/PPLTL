@@ -5,9 +5,9 @@ from generation.generators import MiniGridGenerator, GoldminerGenerator, Sokoban
 from utils.functions import count_unconstrained_total_instances
 
 DOMAIN_MAPPING = {
-    "gridworld": os.path.abspath(os.path.join("plans", "uncostrained", "gridworld", "domain.pddl")),
-    "goldminer": os.path.abspath(os.path.join("plans", "uncostrained", "goldminer", "domain.pddl")),
-    "sokoban":   os.path.abspath(os.path.join("plans", "uncostrained", "sokoban", "domain.pddl"))
+    "gridworld": os.path.abspath(os.path.join("plans", "unconstrained", "gridworld", "domain.pddl")),
+    "goldminer": os.path.abspath(os.path.join("plans", "unconstrained", "goldminer", "domain.pddl")),
+    "sokoban":   os.path.abspath(os.path.join("plans", "unconstrained", "sokoban", "domain.pddl"))
 }
 
 GENERATOR_FACTORY = {

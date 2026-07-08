@@ -6,9 +6,9 @@ from .problem_sampler import ProblemSampler
 from utils import run_generic_pipeline_loop, verify_validate_and_save, save_constrained_instance
 
 UNCONSTRAINED_MAP = {
-    "gridworld": os.path.abspath(os.path.join("plans", "uncostrained", "gridworld")),
-    "goldminer": os.path.abspath(os.path.join("plans", "uncostrained", "goldminer")),
-    "sokoban": os.path.abspath(os.path.join("plans", "uncostrained", "sokoban"))
+    "gridworld": os.path.abspath(os.path.join("plans", "unconstrained", "gridworld")),
+    "goldminer": os.path.abspath(os.path.join("plans", "unconstrained", "goldminer")),
+    "sokoban": os.path.abspath(os.path.join("plans", "unconstrained", "sokoban"))
 }
 
 CONSTRAINED_MAP = {

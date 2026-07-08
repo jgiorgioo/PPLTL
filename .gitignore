@@ -14,4 +14,6 @@ todo
 toask
 
 # --- OUTPUT DEI BENCHMARK ---
-plans/
+plans/constrained/
+plans/unconstrained/*/*/
+!plans/unconstrained/*/domain.pddl
